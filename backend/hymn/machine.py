@@ -4,23 +4,46 @@ class MachineState:
     Simulates the HYMN CPU: 3 registers (IR, PC, AC),
     32-byte memory, and 8 instructions with 3-bit opcodes.
 
-    Instruction word layout (8 bits):
-        bits 7-5 : opcode  (3 bits → values 0-7)
-        bits 4-0 : address (5 bits → values 0-31)
+    Every instruction is 8 bits packed like this:
+
+    [opcode (3 bits) | address (5 bits)]
+    bits 7-5           bits 4-0
+
+    - 3 bits → 8 possible opcodes (0–7)
+    - 5 bits → 32 possible addresses (0–31, matching memory size)
+
+    
+    registers:
+    ┌───────────────────────────┬──────────────────────────────────────────────────────────┐
+    │         Register          │                           Role                           │
+    ├───────────────────────────┼──────────────────────────────────────────────────────────┤
+    │ PC (Program Counter)      │ Points to the next instruction in memory to execute      │
+    ├───────────────────────────┼──────────────────────────────────────────────────────────┤
+    │ AC (Accumulator)          │ The one general-purpose register — all math happens here │
+    ├───────────────────────────┼──────────────────────────────────────────────────────────┤
+    | IR (Instruction Register) │ Holds the raw instruction word just fetched from memory  │
+    └───────────────────────────┴──────────────────────────────────────────────────────────┘
     """
 
-    MEMORY_SIZE = 32  
+    MEMORY_SIZE = 32#bytes
 
     # Opcode constants
     HALT = 0b000
+    #Stop the machine 
     JUMP = 0b001
+    #Set PC to address (unconditional jump)
     JZER = 0b010
+    #Jump to address only if AC == 0  
     JPOS = 0b011
+    #Jump to address only if AC == 0 
     LOAD = 0b100
+    #AC = memory[address]  
     STOR = 0b101
+    # memory[address] = AC  
     ADD  = 0b110
+    # AC = AC + memory[address] 
     SUB  = 0b111
-
+    #AC = AC - memory[address]  
 
     def __init__(self) -> None:
         """Initialise the machine with all registers zero and memory cleared."""
@@ -114,11 +137,29 @@ class MachineState:
         return (opcode << 5) | address
 
 
-
     def step(self) -> None:
         """Fetch and execute one instruction, updating PC, AC, and IR.
 
         Raises RuntimeError if the machine is already halted.
+        ┌────────┬─────────────────────────────────────┬─────────────────────────────┐
+        │ Opcode │         What happens to PC          │ What happens to AC / memory │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ HALT   │ unchanged                           │ _halted = True              │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ JUMP   │ PC = address                        │ nothing                     │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ JZER   │ PC = address if AC==0, else PC += 1 │ nothing                     │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ JPOS   │ PC = address if AC>0, else PC += 1  │ nothing                     │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ LOAD   │ PC += 1                             │ AC = memory[address]        │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ STOR   │ PC += 1                             │ memory[address] = AC        │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ ADD    │ PC += 1                             │ AC = AC + memory[address]   │
+        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
+        │ SUB    │ PC += 1                             │ AC = AC - memory[address]   │
+        └────────┴─────────────────────────────────────┴─────────────────────────────┘
         """
         if self._halted:
             raise RuntimeError("Machine is halted; call reset() to restart.")
