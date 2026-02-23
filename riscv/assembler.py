@@ -122,6 +122,41 @@ def assemble_line(instruction: str) -> int:
         # srai encodes funct7=0100000 in the upper 7 bits of the immediate
         return encode_I((0b0100000 << 5) | (int(parts[3]) & 0b11111), reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPimm)
 
+    # ——————————————————— I-Type LOAD ———————————————————
+    elif mnemonic in ["lw", "lh", "lb", "lbu", "lhu"]:
+        offset, rs1 = parts[2].split("(")
+        rs1 = rs1.strip(")")
+        funct3 = {"lb": 0b000, "lh": 0b001, "lw": 0b010,
+                  "lbu": 0b100, "lhu": 0b101}[mnemonic]
+        return encode_I(int(offset, 0), rs1, funct3, reg(parts[1]), InstructionOpcodes.LOAD)
+
+    # ——————————————————— I-Type JALR ———————————————————
+    elif mnemonic == "jalr":
+        return encode_I(int(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.JALR)
+
+    # ——————————————————— S-Type Store ———————————————————
+    elif mnemonic in ["sw", "sh", "sb"]:
+        offset, rs1 = parts[2].split("(")
+        rs1 = rs1.strip(")")
+        funct3 = {"sw": 0b010, "sh": 0b001, "sb": 0b000}[mnemonic]
+        return encode_S(int(offset, 0), reg(parts[1]), rs1, funct3, InstructionOpcodes.LOAD)
+
+    # ——————————————————— B-Type Branch ———————————————————
+    elif mnemonic in ["beq", "bne", "blt", "bge", "bltu", "bgeu"]:
+        funct3 = {"beq": 0b000, "bne": 0b001, "blt": 0b100,
+                  "bge": 0b101, "bltu": 0b110, "bgeu": 0b111}
+        return encode_B(int(parts[3]), reg(parts[2]), reg[parts[1]], funct3, InstructionOpcodes.BRANCH)
+
+    # ——————————————————— U-Type Branch ———————————————————
+    elif mnemonic == "lui":
+        return encode_U(int(parts[2]), reg(parts[1]), InstructionOpcodes.LUI)
+    elif mnemonic == "auipc":
+        return encode_U(int(parts[2]), reg(parts[1]), InstructionOpcodes.AUIPC)
+
+    # ——————————————————— J-Type Branch ———————————————————
+    elif mnemonic == "jal":
+        return encode_J(int(parts[2]), reg(parts[1]), InstructionOpcodes.JAL)
+
     return 0
 
 
