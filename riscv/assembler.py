@@ -24,7 +24,7 @@ def encode_I(imm, rs1, funct3, rd, opcode) -> int:
 
 def encode_S(imm, rs2, rs1, funct3, opcode) -> int:
     return (
-        ((imm & 0b11111100000) << 25) |  # imm[11:5] - bits 31-25
+        (((imm >> 5) & 0b1111111) << 25) |  # imm[11:5] - bits 31-25
         ((rs2 & 0b11111) << 20) |
         ((rs1 & 0b11111) << 15) |
         ((funct3 & 0b111) << 12) |
@@ -128,23 +128,29 @@ def assemble_line(instruction: str) -> int:
         rs1 = rs1.strip(")")
         funct3 = {"lb": 0b000, "lh": 0b001, "lw": 0b010,
                   "lbu": 0b100, "lhu": 0b101}[mnemonic]
-        return encode_I(int(offset, 0), rs1, funct3, reg(parts[1]), InstructionOpcodes.LOAD)
+        return encode_I(int(offset, 0), reg(rs1), funct3, reg(parts[1]), InstructionOpcodes.LOAD)
 
     # ——————————————————— I-Type JALR ———————————————————
     elif mnemonic == "jalr":
         return encode_I(int(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.JALR)
+    
+    # ——————————————————— I-Type System ———————————————————
+    elif mnemonic == "ecall":
+        return encode_I(0, 0, 0b000, 0, InstructionOpcodes.SYSTEM)
+    elif mnemonic == "ebreak":
+        return encode_I(1, 0, 0b000, 0, InstructionOpcodes.SYSTEM)
 
     # ——————————————————— S-Type Store ———————————————————
     elif mnemonic in ["sw", "sh", "sb"]:
         offset, rs1 = parts[2].split("(")
         rs1 = rs1.strip(")")
         funct3 = {"sw": 0b010, "sh": 0b001, "sb": 0b000}[mnemonic]
-        return encode_S(int(offset, 0), reg(parts[1]), rs1, funct3, InstructionOpcodes.LOAD)
+        return encode_S(int(offset, 0), reg(parts[1]), reg(rs1), funct3, InstructionOpcodes.LOAD)
 
     # ——————————————————— B-Type Branch ———————————————————
     elif mnemonic in ["beq", "bne", "blt", "bge", "bltu", "bgeu"]:
         funct3 = {"beq": 0b000, "bne": 0b001, "blt": 0b100,
-                  "bge": 0b101, "bltu": 0b110, "bgeu": 0b111}
+                  "bge": 0b101, "bltu": 0b110, "bgeu": 0b111}[mnemonic]
         return encode_B(int(parts[3]), reg(parts[2]), reg[parts[1]], funct3, InstructionOpcodes.BRANCH)
 
     # ——————————————————— U-Type Branch ———————————————————
@@ -157,7 +163,7 @@ def assemble_line(instruction: str) -> int:
     elif mnemonic == "jal":
         return encode_J(int(parts[2]), reg(parts[1]), InstructionOpcodes.JAL)
 
-    return 0
+    raise ValueError(f"Unknown Instruction: '{mnemonic}'")
 
 
 def assemble(source: str) -> list[int]:
