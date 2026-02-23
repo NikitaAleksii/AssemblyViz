@@ -1,4 +1,4 @@
-from isa import *
+from riscv.isa import *
 
 pc = 0
 labels = {}
