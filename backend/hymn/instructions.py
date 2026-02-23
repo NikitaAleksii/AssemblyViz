@@ -94,11 +94,11 @@ ADD  = _def("ADD",  0b110, OperandType.ADDRESS)
 
 HALT = _def("HALT", 0b000)
 
-JUMP = _def("JUMP", 0b001)
+JUMP = _def("JUMP", 0b001, OperandType.ADDRESS)
 
-JZER = _def("JZER", 0b010)
+JZER = _def("JZER", 0b010, OperandType.ADDRESS)
 
-JPOS = _def("JPOS", 0b011)
+JPOS = _def("JPOS", 0b011, OperandType.ADDRESS)
 
 LOAD = _def("LOAD", 0b100, OperandType.ADDRESS)
 
