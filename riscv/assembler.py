@@ -3,13 +3,14 @@ from isa import *
 pc = 0
 labels = {}
 
+
 def int_or_label(label) -> int:
     if label in labels:
         return labels[label] - pc
 
     return int(label, 0)
 
-# Register Instruction 
+# Register Instruction
 # funct7(7b) | rs2(5b) | rs1(5b) | funct3(3b) | opcode(7b)
 def encode_R(funct7, rs2, rs1, funct3, rd, opcode) -> int:
     return (
@@ -33,7 +34,7 @@ def encode_I(imm, rs1, funct3, rd, opcode) -> int:
     )
 
 # Store Instruction
-# imm[11:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:0] | opcode(7b) 
+# imm[11:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:0] | opcode(7b)
 def encode_S(imm, rs2, rs1, funct3, opcode) -> int:
     return (
         (((imm >> 5) & 0b1111111) << 25) |  # imm[11:5] - bits 31-25
@@ -45,7 +46,7 @@ def encode_S(imm, rs2, rs1, funct3, opcode) -> int:
     )
 
 # Branch Instruction
-# imm[12] | imm[10:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:1] | imm[11] | opcode(7b) 
+# imm[12] | imm[10:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:1] | imm[11] | opcode(7b)
 def encode_B(imm, rs2, rs1, funct3, opcode) -> int:
     return (
         (((imm >> 12) & 0b1) << 31) |  # imm[12]
@@ -148,7 +149,7 @@ def assemble_line(instruction: str) -> int:
     # ——————————————————— I-Type JALR ———————————————————
     elif mnemonic == "jalr":
         return encode_I(int(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.JALR)
-    
+
     # ——————————————————— I-Type System ———————————————————
     elif mnemonic == "ecall":
         return encode_I(0, 0, 0b000, 0, InstructionOpcodes.SYSTEM)
@@ -160,13 +161,13 @@ def assemble_line(instruction: str) -> int:
         offset, rs1 = parts[2].split("(")
         rs1 = rs1.strip(")")
         funct3 = {"sw": 0b010, "sh": 0b001, "sb": 0b000}[mnemonic]
-        return encode_S(int(offset, 0), reg(parts[1]), reg(rs1), funct3, InstructionOpcodes.LOAD)
+        return encode_S(int(offset, 0), reg(parts[1]), reg(rs1), funct3, InstructionOpcodes.STORE)
 
     # ——————————————————— B-Type Branch ———————————————————
     elif mnemonic in ["beq", "bne", "blt", "bge", "bltu", "bgeu"]:
         funct3 = {"beq": 0b000, "bne": 0b001, "blt": 0b100,
                   "bge": 0b101, "bltu": 0b110, "bgeu": 0b111}[mnemonic]
-        return encode_B(int_or_label(parts[3]), reg(parts[2]), reg[parts[1]], funct3, InstructionOpcodes.BRANCH)
+        return encode_B(int_or_label(parts[3]), reg(parts[2]), reg(parts[1]), funct3, InstructionOpcodes.BRANCH)
 
     # ——————————————————— U-Type Branch ———————————————————
     elif mnemonic == "lui":
@@ -184,12 +185,12 @@ def assemble_line(instruction: str) -> int:
 def assemble(source: str) -> list[int]:
     global pc
     global labels
-    
+
     words = []
-    
+
     lines = source.strip().splitlines()
     instructions = [line.split("#")[0].strip() for line in lines]
-     
+
     for instruction in instructions:
         if not instruction or instruction.startswith("#"):
             continue
@@ -197,17 +198,17 @@ def assemble(source: str) -> list[int]:
             labels[instruction.split(":")[0]] = pc
             continue
         pc += 4
-    
+
     pc = 0
-    
+
     for instruction in instructions:
         if not instruction or instruction.startswith("#"):
             continue
         if ":" in instruction:
             continue
-        words.append(f"{assemble_line(instruction):032b}")
-        
-        pc+=4
+        words.append(assemble_line(instruction))
+
+        pc += 4
 
     return words
 
