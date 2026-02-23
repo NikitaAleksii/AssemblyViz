@@ -1,3 +1,5 @@
+from isa import *
+
 
 def encode_R(funct7, rs2, rs1, funct3, rd, opcode) -> int:
     return (
@@ -22,7 +24,7 @@ def encode_I(imm, rs1, funct3, rd, opcode) -> int:
 
 def encode_S(imm, rs2, rs1, funct3, opcode) -> int:
     return (
-        ((imm & 0b11111100000) << 20) |  # imm[11:5] - bits 31-25
+        ((imm & 0b11111100000) << 25) |  # imm[11:5] - bits 31-25
         ((rs2 & 0b11111) << 20) |
         ((rs1 & 0b11111) << 15) |
         ((funct3 & 0b111) << 12) |
@@ -63,10 +65,62 @@ def encode_J(imm, rd, opcode) -> int:
     )
 
 
-def assemble_line(instruction: str) -> int:
-    instruction = instruction.replace(",", "").split()
+ABI = {name: i for i, name in enumerate(REGISTER_NAMES)}
 
-    mnemonic = instruction[0].lower()
+
+def reg(name: str) -> int:
+    name = name.strip().lower()
+    if name in ABI:
+        return ABI[name]
+    return int(name[1:])
+
+
+def assemble_line(instruction: str) -> int:
+    parts = instruction.replace(",", "").split()
+    mnemonic = parts[0].lower()
+
+    # ——————————————————— R-Type ———————————————————
+    if mnemonic == "add":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "sub":
+        return encode_R(0b0100000, reg(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "sll":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b001, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "slt":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b010, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "sltu":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b011, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "xor":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b100, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "srl":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "sra":
+        return encode_R(0b0100000, reg(parts[3]), reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "or":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b110, reg(parts[1]), InstructionOpcodes.OPreg)
+    elif mnemonic == "and":
+        return encode_R(0b0000000, reg(parts[3]), reg(parts[2]), 0b111, reg(parts[1]), InstructionOpcodes.OPreg)
+
+    # ——————————————————— I-Type ALU ———————————————————
+    elif mnemonic == "addi":
+        return encode_I(int(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "slti":
+        return encode_I(int(parts[3]), reg(parts[2]), 0b010, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "sltiu":
+        return encode_I(int(parts[3]), reg(parts[2]), 0b011, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "xori":
+        return encode_I(int(parts[3]), reg(parts[2]), 0b100, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "ori":
+        return encode_I(int(parts[3]), reg(parts[2]), 0b110, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "andi":
+        return encode_I(int(parts[3]), reg(parts[2]), 0b111, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "slli":
+        return encode_I(int(parts[3]) & 0b11111, reg(parts[2]), 0b001, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "srli":
+        return encode_I(int(parts[3]) & 0b11111, reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPimm)
+    elif mnemonic == "srai":
+        # srai encodes funct7=0100000 in the upper 7 bits of the immediate
+        return encode_I((0b0100000 << 5) | (int(parts[3]) & 0b11111), reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPimm)
 
     return 0
 
@@ -82,3 +136,13 @@ def assemble(source: str) -> list[int]:
         words.append(assemble_line(instruction))
 
     return words
+
+
+def main():
+    source = "add x1, x2, x3"
+    words = assemble(source)
+    print(words)
+
+
+if __name__ == "__main__":
+    main()
