@@ -35,7 +35,7 @@ class MachineState:
     JZER = 0b010
     #Jump to address only if AC == 0  
     JPOS = 0b011
-    #Jump to address only if AC == 0 
+    #Jump to address only if AC >=0 
     LOAD = 0b100
     #AC = memory[address]  
     STOR = 0b101
@@ -173,37 +173,47 @@ class MachineState:
         # Execute
         if opcode == self.HALT:
             self._halted = True
+            # pc unchanged, _halted = True
 
         elif opcode == self.JUMP:
             self._pc = address
+            # PC = address, nothing happens to AC/memory
 
         elif opcode == self.JZER:
             if self._ac == 0:
                 self._pc = address
             else:
                 self._pc += 1
+            # PC = address if AC==0, else PC += 1, nothing happens to AC/memory
 
         elif opcode == self.JPOS:
             if self._ac > 0:
                 self._pc = address
             else:
                 self._pc += 1
+                #PC = address if AC>0, else PC += 1, nothing happens to AC/memory
 
         elif opcode == self.LOAD:
             self._ac = self._memory[address]
             self._pc += 1
+            #PC += 1, AC = memory[address]  
 
         elif opcode == self.STOR:
             self._memory[address] = self._ac
             self._pc += 1
+            #PC += 1, memory[address] = AC   
 
         elif opcode == self.ADD:
             self._ac = self._ac + self._memory[address]
             self._pc += 1
+            #PC += 1, AC = AC + memory[address] 
 
         elif opcode == self.SUB:
             self._ac = self._ac - self._memory[address]
             self._pc += 1
+            #PC += 1, AC = AC - memory[address] 
+
+
 
     def run(self) -> None:
         """Execute instructions until HALT or PC goes out of bounds."""
