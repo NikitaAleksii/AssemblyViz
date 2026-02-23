@@ -1,6 +1,16 @@
 from isa import *
 
+pc = 0
+labels = {}
 
+def int_or_label(label) -> int:
+    if label in labels:
+        return labels[label] - pc
+
+    return int(label, 0)
+
+# Register Instruction 
+# funct7(7b) | rs2(5b) | rs1(5b) | funct3(3b) | opcode(7b)
 def encode_R(funct7, rs2, rs1, funct3, rd, opcode) -> int:
     return (
         ((funct7 & 0b1111111) << 25) |
@@ -11,7 +21,8 @@ def encode_R(funct7, rs2, rs1, funct3, rd, opcode) -> int:
         (opcode & 0b1111111)
     )
 
-
+# Immediate Instruction
+# imm(12b) | rs1(5b) | funct3(3b) | rd(5b) | opcode(7b)
 def encode_I(imm, rs1, funct3, rd, opcode) -> int:
     return (
         ((imm & 0b111111111111) << 20) |  # imm[11:0] - bits 31-20
@@ -21,7 +32,8 @@ def encode_I(imm, rs1, funct3, rd, opcode) -> int:
         (opcode & 0b1111111)
     )
 
-
+# Store Instruction
+# imm[11:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:0] | opcode(7b) 
 def encode_S(imm, rs2, rs1, funct3, opcode) -> int:
     return (
         (((imm >> 5) & 0b1111111) << 25) |  # imm[11:5] - bits 31-25
@@ -32,7 +44,8 @@ def encode_S(imm, rs2, rs1, funct3, opcode) -> int:
         (opcode & 0b1111111)
     )
 
-
+# Branch Instruction
+# imm[12] | imm[10:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:1] | imm[11] | opcode(7b) 
 def encode_B(imm, rs2, rs1, funct3, opcode) -> int:
     return (
         (((imm >> 12) & 0b1) << 31) |  # imm[12]
@@ -45,7 +58,8 @@ def encode_B(imm, rs2, rs1, funct3, opcode) -> int:
         (opcode & 0b1111111)
     )
 
-
+# Upper Immediate Instruction
+# imm[31:12] | rd(5b) | opcode(7b)
 def encode_U(imm, rd, opcode) -> int:
     return (
         ((imm & 0b11111111111111111111) << 12) |  # imm[19:0]
@@ -53,7 +67,8 @@ def encode_U(imm, rd, opcode) -> int:
         (opcode & 0b1111111)
     )
 
-
+# Unconditional Jump
+# imm[20] | imm[10:1] | imm[11] | imm[19:12] | rd(5b) | opcode(7b)
 def encode_J(imm, rd, opcode) -> int:
     return (
         (((imm >> 20) & 0b1) << 31) |  # imm[20]
@@ -151,7 +166,7 @@ def assemble_line(instruction: str) -> int:
     elif mnemonic in ["beq", "bne", "blt", "bge", "bltu", "bgeu"]:
         funct3 = {"beq": 0b000, "bne": 0b001, "blt": 0b100,
                   "bge": 0b101, "bltu": 0b110, "bgeu": 0b111}[mnemonic]
-        return encode_B(int(parts[3]), reg(parts[2]), reg[parts[1]], funct3, InstructionOpcodes.BRANCH)
+        return encode_B(int_or_label(parts[3]), reg(parts[2]), reg[parts[1]], funct3, InstructionOpcodes.BRANCH)
 
     # ——————————————————— U-Type Branch ———————————————————
     elif mnemonic == "lui":
@@ -161,28 +176,47 @@ def assemble_line(instruction: str) -> int:
 
     # ——————————————————— J-Type Branch ———————————————————
     elif mnemonic == "jal":
-        return encode_J(int(parts[2]), reg(parts[1]), InstructionOpcodes.JAL)
+        return encode_J(int_or_label(parts[2]), reg(parts[1]), InstructionOpcodes.JAL)
 
-    raise ValueError(f"Unknown Instruction: '{mnemonic}'")
+    raise ValueError(f"Unknown Instruction: {mnemonic}")
 
 
 def assemble(source: str) -> list[int]:
+    global pc
+    global labels
+    
     words = []
-    for instruction in source.strip().splitlines():
-        instruction = instruction.split("#")[0].strip()
-
-        if not instruction:
+    
+    lines = source.strip().splitlines()
+    instructions = [line.split("#")[0].strip() for line in lines]
+     
+    for instruction in instructions:
+        if not instruction or instruction.startswith("#"):
             continue
-
-        words.append(assemble_line(instruction))
+        if ":" in instruction:
+            labels[instruction.split(":")[0]] = pc
+            continue
+        pc += 4
+    
+    pc = 0
+    
+    for instruction in instructions:
+        if not instruction or instruction.startswith("#"):
+            continue
+        if ":" in instruction:
+            continue
+        words.append(f"{assemble_line(instruction):032b}")
+        
+        pc+=4
 
     return words
 
 
 def main():
-    source = "add x1, x2, x3"
+    source = "add x1, x2, x3 \n add x5, x5, x6 \n label: \n add x5, x5, x6 \n jal x1 label"
     words = assemble(source)
     print(words)
+    print(labels)
 
 
 if __name__ == "__main__":
