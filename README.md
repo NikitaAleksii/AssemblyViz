@@ -7,3 +7,14 @@
 - **Robby Votta** - Developer
 - **Yurdanur Yolcu** - Developer
 
+## Current Layout
+
+```
+ASSEMBLYVIZ/
+├── hymn       
+├── riscv     
+├── reports
+```
+
+- **Backend** - Python + testbenches
+- **Frontend** - TypeScript + React
