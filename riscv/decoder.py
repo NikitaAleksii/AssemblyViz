@@ -1,0 +1,70 @@
+from isa import *
+from assembler import *
+import sys
+
+
+class DecodedInstruction:
+    def __init__(self, instruction):
+        # Initialize instruction fields
+        self.opcode = int(instruction[25:], 2)
+        self.rd = int(instruction[20:25], 2)
+        self.funct3 = int(instruction[17:20], 2)
+        self.rs1 = int(instruction[12:17], 2)
+        self.rs2 = int(instruction[7:12], 2)
+        self.funct7 = int(instruction[0:7], 2)
+
+        # Initialize the flags of each instruction opcode
+        self.isOPreg = (self.opcode == InstructionOpcodes.OPreg)
+        self.isOPimm = (self.opcode == InstructionOpcodes.OPimm)
+        self.isLoad = (self.opcode == InstructionOpcodes.LOAD)
+        self.isStore = (self.opcode == InstructionOpcodes.STORE)
+        self.isBranch = (self.opcode == InstructionOpcodes.BRANCH)
+        self.isJal = (self.opcode == InstructionOpcodes.JAL)
+        self.isJalr = (self.opcode == InstructionOpcodes.JALR)
+        self.isLUI = (self.opcode == InstructionOpcodes.LUI)
+        self.isAUIPC = (self.opcode == InstructionOpcodes.AUIPC)
+        self.isSystem = (self.opcode == InstructionOpcodes.SYSTEM)
+
+    def print_decoded_instr(self):
+        print("========= Decoded Instruction =========")
+        print(f"Opcode: {self.opcode:07b}")
+        print(f"rd:     {self.rd:05b}")
+        print(f"funct3: {self.funct3:03b}")
+        print(f"rs1:    {self.rs1:05b}")
+        print(f"rs2:    {self.rs2:05b}")
+        print(f"funct7: {self.funct7:07b}")
+
+    def print_instr_opcode(self):
+        flags = {
+            "isOPreg": self.isOPreg, "isOPimm": self.isOPimm,
+            "isLoad": self.isLoad,   "isStore": self.isStore,
+            "isBranch": self.isBranch, "isJal": self.isJal,
+            "isJalr": self.isJalr,  "isLUI": self.isLUI,
+            "isAUIPC": self.isAUIPC, "isSystem": self.isSystem
+        }
+
+        print("========= Print Instruction Flags =========")
+        for name, value in flags.items():
+            print(f"{name}: {value}")
+            
+    def print_instr(self):
+        print("========= Print Instruction =========")
+        mnemonic = MNEMONICS.get((self.opcode, self.funct3, self.funct7)) or MNEMONICS.get((self.opcode, None)) or MNEMONICS.get((self.opcode, self.funct3), "unknown")
+        print(mnemonic)
+
+
+def main():
+    source = "add x1, x2, x3 \n add x5, x5, x6 \n label: \n add x5, x5, x6 \n jal x1 label"
+    decoded_instructions = []
+    instructions = assemble(source)
+    for instr in instructions:
+        new_decoded_instr = DecodedInstruction(instr)
+        decoded_instructions.append(new_decoded_instr)
+        DecodedInstruction.print_instr_opcode(new_decoded_instr)
+        DecodedInstruction.print_decoded_instr(new_decoded_instr)
+        DecodedInstruction.print_instr(new_decoded_instr)
+        print("\n")
+
+
+if __name__ == "__main__":
+    main()
