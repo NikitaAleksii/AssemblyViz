@@ -1,10 +1,12 @@
-from isa import *
-from assembler import *
-import sys
+from riscv.isa import *
+from riscv.assembler import *
 
 
 class DecodedInstruction:
     def __init__(self, instruction):
+        # Convert a instruction code into a 32-bit string of binary numbers
+        instruction = format(instruction, '032b')
+
         # Initialize instruction fields
         self.opcode = int(instruction[25:], 2)
         self.rd = int(instruction[20:25], 2)
@@ -39,6 +41,9 @@ class DecodedInstruction:
             instruction[12:20] + instruction[11] + instruction[1:11] + \
             '0'  # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
 
+
+def main():
+    # Print fields of decoded instruction
     def print_decoded_instr(self):
         print("========= Decoded Instruction =========")
         print(f"Opcode: {self.opcode:07b}")
@@ -48,6 +53,7 @@ class DecodedInstruction:
         print(f"rs2:    {self.rs2:05b}")
         print(f"funct7: {self.funct7:07b}")
 
+    # Print the type of an instruction
     def print_instr_opcode(self):
         flags = {
             "isOPreg": self.isOPreg, "isOPimm": self.isOPimm,
@@ -61,27 +67,27 @@ class DecodedInstruction:
         for name, value in flags.items():
             print(f"{name}: {value}")
 
+    # Print the type of instruction immediate
     def print_instr_imm(self):
         print("Immediate Type: " + OPCODE_FORMATS.get(self.opcode) + "imm")
 
+    # Print the instruction itself
     def print_instr(self):
         print("========= Print Instruction =========")
         mnemonic = MNEMONICS.get((self.opcode, self.funct3, self.funct7)) or MNEMONICS.get(
             (self.opcode, None)) or MNEMONICS.get((self.opcode, self.funct3), "unknown")
         print(mnemonic)
 
-
-def main():
     source = "add x1, x2, x3 \n add x5, x5, x6 \n label: \n add x5, x5, x6 \n jal x1 label"
     decoded_instructions = []
     instructions = assemble(source)
     for instr in instructions:
         new_decoded_instr = DecodedInstruction(instr)
         decoded_instructions.append(new_decoded_instr)
-        DecodedInstruction.print_instr_opcode(new_decoded_instr)
-        DecodedInstruction.print_decoded_instr(new_decoded_instr)
-        DecodedInstruction.print_instr(new_decoded_instr)
-        DecodedInstruction.print_instr_imm(new_decoded_instr)
+        print_instr_opcode(new_decoded_instr)
+        print_decoded_instr(new_decoded_instr)
+        print_instr(new_decoded_instr)
+        print_instr_imm(new_decoded_instr)
         print("\n")
 
 

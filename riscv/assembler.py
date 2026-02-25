@@ -1,4 +1,4 @@
-from isa import *
+from riscv.isa import *
 
 pc = 0
 labels = {}
@@ -206,7 +206,7 @@ def assemble(source: str) -> list[int]:
             continue
         if ":" in instruction:
             continue
-        words.append(format(assemble_line(instruction), '032b'))
+        words.append(assemble_line(instruction))
 
         pc += 4
 
