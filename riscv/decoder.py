@@ -25,6 +25,20 @@ class DecodedInstruction:
         self.isAUIPC = (self.opcode == InstructionOpcodes.AUIPC)
         self.isSystem = (self.opcode == InstructionOpcodes.SYSTEM)
 
+        sign = instruction[0]  # bit 31 = sign bit
+
+        # inst[31:20] sign-extended to 32 bits
+        self.Iimm = sign * 21 + instruction[1:12]
+        # inst[31:25] + inst[11:7]
+        self.Simm = sign * 21 + instruction[1:7] + instruction[20:25]
+        self.Bimm = sign * 20 + instruction[24] + \
+            instruction[1:7] + instruction[20:24] + \
+            '0'  # inst[31] + inst[7] + inst[30:25] + inst[11:8] + 0
+        self.Uimm = instruction[0:20] + '0' * 12  # inst[31:12] + 12 zeros
+        self.Jimm = sign * 12 + \
+            instruction[12:20] + instruction[11] + instruction[1:11] + \
+            '0'  # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
+
     def print_decoded_instr(self):
         print("========= Decoded Instruction =========")
         print(f"Opcode: {self.opcode:07b}")
@@ -46,10 +60,14 @@ class DecodedInstruction:
         print("========= Print Instruction Flags =========")
         for name, value in flags.items():
             print(f"{name}: {value}")
-            
+
+    def print_instr_imm(self):
+        print("Immediate Type: " + OPCODE_FORMATS.get(self.opcode) + "imm")
+
     def print_instr(self):
         print("========= Print Instruction =========")
-        mnemonic = MNEMONICS.get((self.opcode, self.funct3, self.funct7)) or MNEMONICS.get((self.opcode, None)) or MNEMONICS.get((self.opcode, self.funct3), "unknown")
+        mnemonic = MNEMONICS.get((self.opcode, self.funct3, self.funct7)) or MNEMONICS.get(
+            (self.opcode, None)) or MNEMONICS.get((self.opcode, self.funct3), "unknown")
         print(mnemonic)
 
 
@@ -63,6 +81,7 @@ def main():
         DecodedInstruction.print_instr_opcode(new_decoded_instr)
         DecodedInstruction.print_decoded_instr(new_decoded_instr)
         DecodedInstruction.print_instr(new_decoded_instr)
+        DecodedInstruction.print_instr_imm(new_decoded_instr)
         print("\n")
 
 
