@@ -2,14 +2,7 @@ import math
 
 
 class Memory:
-    memory = []
-    addr_width = 0
-    memory_slots = 0
-
     def memory_reset(self):
-        # Calculate the number of memory slots
-        self.memory_slots = math.ceil(self.depth/4)
-
         # Check if the memory was initialized before; if not, initialize the memory
         if (not self.memory):
             self.memory = [None] * self.memory_slots
@@ -54,10 +47,29 @@ class Memory:
             print("Address doesn't exist in memory")
 
     def __init__(self, depth, init):
+        self.memory = []
+        
         self.depth = depth
         self.addr_width = math.floor(
             math.log2(depth))  # Calculate address width
+        
+        # Calculate the number of memory slots
+        self.memory_slots = math.ceil(self.depth/4)
+
         self.memory_reset()  # Initialize memory to 0
+
+        # If init is not zero
+        if (init):
+            tokenized = init.split()
+
+            try:
+                if (self.memory_slots < len(tokenized)):
+                    raise ValueError()
+                else:
+                    for i in range(len(tokenized)):
+                        self.memory_write(i*4, int(tokenized[i]), "1111")
+            except ValueError:
+                print("Address doesn't exist in memory")
 
     def memory_print(self):
         addr = 0
