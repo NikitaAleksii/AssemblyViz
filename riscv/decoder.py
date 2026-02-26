@@ -29,17 +29,15 @@ class DecodedInstruction:
 
         sign = instruction[0]  # bit 31 = sign bit
 
-        # inst[31:20] sign-extended to 32 bits
-        self.Iimm = sign * 21 + instruction[1:12]
-        # inst[31:25] + inst[11:7]
-        self.Simm = sign * 21 + instruction[1:7] + instruction[20:25]
+        self.Iimm = sign * 21 + instruction[1:12] # inst[31:20] sign-extended to 32 bits
+        self.Simm = sign * 21 + instruction[1:7] + instruction[20:25] # inst[31:25] + inst[11:7]
         self.Bimm = sign * 20 + instruction[24] + \
             instruction[1:7] + instruction[20:24] + \
-            '0'  # inst[31] + inst[7] + inst[30:25] + inst[11:8] + 0
+            '0'                                   # inst[31] + inst[7] + inst[30:25] + inst[11:8] + 0
         self.Uimm = instruction[0:20] + '0' * 12  # inst[31:12] + 12 zeros
         self.Jimm = sign * 12 + \
             instruction[12:20] + instruction[11] + instruction[1:11] + \
-            '0'  # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
+            '0'                                   # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
 
 
 def main():

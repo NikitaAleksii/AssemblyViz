@@ -17,7 +17,7 @@ class Memory:
                 # Calculate the address in the memory
                 index = int(address/4)
                 # Convert an integer input into 32-bit string
-                value = format(value, "032b")
+                value = format(value & 0xFFFFFFFF, "032b")
 
                 # Based on the input of mask, edit the contents of a memory slots.
                 # Used for storing words, halfwords, and bytes.
