@@ -23,13 +23,15 @@ class Parser:
 
     def __init__(self) -> None:
         """Initialise the parser with an empty symbol table and error list."""
-        ...
+        self._errorLst = []
+        self._symbolDict = {}
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def parse(self, source: str) -> list[int] | None:
+
         """Assemble *source* into a list of 8-bit instruction words.
 
         Runs a two-pass assembly: first pass builds the symbol table,
@@ -42,7 +44,16 @@ class Parser:
             A list of ints (one per instruction) on success, or None if
             any errors were encountered. Check self.errors for details.
         """
-        ...
+        self._errorLst  = [] # reset errors list back to empty list
+        self._symbolDict = {} # reset symbol dicitonary to empty dicitonary
+
+        parsedLines = source.splitlines()
+
+        self._first_pass(parsedLines)
+
+        self._second_pass(parsedLines)
+
+
 
     @property
     def errors(self) -> list[ParseError]:
@@ -63,15 +74,36 @@ class Parser:
     # ------------------------------------------------------------------
 
     def _first_pass(self, lines: list[str]) -> None:
+
         """Scan all lines and populate the symbol table.
 
         Does not encode any instructions. Records every label definition
         (e.g. 'LOOP:') and maps it to the address it will occupy in memory.
 
         Args:
-            lines: Raw source lines, one per index.
-        """
-        ...
+            lines: Raw source lines, one per index."""
+
+        address = 0
+
+        for index, line in enumerate(lines):
+
+            tokens = self._tokenize_line(line)
+            if(tokens == []):
+                continue
+            token = tokens[0]
+            isLabel = self._is_label_definition(token)
+
+            if(isLabel):
+                token = token.strip(':')
+
+                label_name = token
+
+                self._symbolDict[label_name] = address
+                if len(tokens) > 1: # e.g. LOOP: ADD 3 must still increment adress
+                    address += 1
+            else:
+                address += 1
+                continue
 
     # ------------------------------------------------------------------
     # Private helpers — second pass
@@ -88,7 +120,23 @@ class Parser:
         Returns:
             List of encoded instruction words.
         """
-        ...
+        words = []
+
+        for index, line in enumerate(lines):
+            tokens = self._tokenize_line(line)
+            if(tokens == []):
+                continue
+            token = tokens[0]
+            isLabel = self._is_label_definition(token)
+
+            if(isLabel):
+                token = token.strip(':')
+
+            else:
+                continue
+
+            self._encode_line()
+
 
     def _encode_line(self, line_number: int, tokens: list[str]) -> int | None:
         """Encode a single tokenised line into one 8-bit machine word.
