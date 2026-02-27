@@ -1,6 +1,14 @@
 import math
 
+"""
+Implements a word-addressable memory model for RISC-V simulation.
 
+- Memory is divided into 32-bit (4-byte) slots
+- All slots are initialized to 0 on creation
+- Supports partial writes via a 4-bit byte mask (e.g. "1111" for full word, "0001" for byte)
+- Addresses must be word-aligned (divisible by 4)
+- Can be pre-loaded with initial values via the init string parameter
+"""
 class Memory:
     def memory_reset(self):
         # Check if the memory was initialized before; if not, initialize the memory

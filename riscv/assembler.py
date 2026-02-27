@@ -1,8 +1,32 @@
 from riscv.isa import *
 
+"""
+Implements a RISC-V RV32I assembler.
+
+Takes a string of assembly source code and converts it into a list of
+32-bit machine code words that can be loaded into the memory model.
+
+Supports the full RV32I base integer instruction set:
+- R-type:  add, sub, and, or, xor, sll, srl, sra, slt, sltu
+- I-type:  addi, andi, ori, xori, slti, sltiu, slli, srli, srai
+- Load:    lw, lh, lb, lhu, lbu
+- Store:   sw, sh, sb
+- Branch:  beq, bne, blt, bge, bltu, bgeu
+- U-type:  lui, auipc
+- Jump:    jal, jalr
+- System:  ecall, ebreak
+
+Syntax rules:
+- Registers can be specified as x0–x31 or ABI names (zero, ra, sp, a0 … t6)
+- Immediates can be decimal (10) or hexadecimal (0xFF)
+- Comments start with # and are ignored
+- Blank lines are ignored
+
+Raises ValueError if an unknown instruction is encountered.
+"""
+
 pc = 0
 labels = {}
-
 
 def int_or_label(label) -> int:
     if label in labels:
