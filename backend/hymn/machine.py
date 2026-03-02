@@ -217,6 +217,8 @@ class MachineState:
 
     def run(self) -> None:
         """Execute instructions until HALT or PC goes out of bounds."""
+        if self._halted:
+            raise RuntimeError("Machine is halted; call reset() to restart.")
         while not self._halted:
             self.step()
 
