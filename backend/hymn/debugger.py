@@ -1,5 +1,6 @@
 from __future__ import annotations
 from hymn.executor import Executor
+from hymn.machine import MachineState
 
 
 class Debugger:
@@ -26,7 +27,8 @@ class Debugger:
         Args:
             executor: The Executor instance to control.
         """
-        pass
+        self._executor = executor
+        self._breakpoints: set[int] = set()
 
     # ------------------------------------------------------------------
     # Breakpoint management
@@ -41,7 +43,12 @@ class Debugger:
         Raises:
             ValueError: if *address* is outside 0-31.
         """
-        pass
+        if not (0 <= address < MachineState.MEMORY_SIZE):
+            raise ValueError(
+                f"Breakpoint address {address} out of range "
+                f"(0-{MachineState.MEMORY_SIZE - 1})"
+            )
+        self._breakpoints.add(address)
 
     def remove_breakpoint(self, address: int) -> None:
         """Deregister *address*.  No-op if it was not set.
@@ -49,16 +56,16 @@ class Debugger:
         Args:
             address: Memory address to remove.
         """
-        pass
+        self._breakpoints.discard(address)
 
     def clear_breakpoints(self) -> None:
         """Remove all breakpoints."""
-        pass
+        self._breakpoints.clear()
 
     @property
     def breakpoints(self) -> set[int]:
         """The current set of active breakpoint addresses (read-only copy)."""
-        pass
+        return set(self._breakpoints)
 
     # ------------------------------------------------------------------
     # Execution control
@@ -73,7 +80,7 @@ class Debugger:
         Raises:
             RuntimeError: if the machine is already halted.
         """
-        pass
+        return self._executor.step()
 
     def run_until_break(self) -> dict:
         """Run instructions until a breakpoint address is reached or the
@@ -89,7 +96,13 @@ class Debugger:
         Raises:
             RuntimeError: if the machine is already halted before this call.
         """
-        pass
+        if self._executor.halted:
+            raise RuntimeError("Machine is halted; call reset() to restart.")
+        while not self._executor.halted:
+            if self._executor.machine.pc in self._breakpoints:
+                break
+            self._executor.step()
+        return self._executor.state
 
     # ------------------------------------------------------------------
     # State inspection (convenience pass-throughs)
@@ -98,9 +111,9 @@ class Debugger:
     @property
     def halted(self) -> bool:
         """True once the underlying machine has halted."""
-        pass
+        return self._executor.halted
 
     @property
     def state(self) -> dict:
         """Current machine state snapshot."""
-        pass
+        return self._executor.state

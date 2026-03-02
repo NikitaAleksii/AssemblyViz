@@ -19,7 +19,7 @@ class Executor:
 
     def __init__(self) -> None:
         """Create an Executor backed by a freshly reset MachineState."""
-        pass
+        self._machine = MachineState()
 
     # ------------------------------------------------------------------
     # Program management
@@ -33,11 +33,12 @@ class Executor:
             words:  List of 8-bit instruction/data words.
             origin: Starting memory address (0-31, default 0).
         """
-        pass
+        self._machine.reset()
+        self._machine.load_program(words, origin)
 
     def reset(self) -> None:
         """Reset all registers and clear memory back to zero."""
-        pass
+        self._machine.reset()
 
     # ------------------------------------------------------------------
     # Execution
@@ -53,7 +54,8 @@ class Executor:
         Raises:
             RuntimeError: if the machine is already halted.
         """
-        pass
+        self._machine.step()
+        return self._machine.snapshot()
 
     def run(self) -> dict:
         """Execute instructions until a HALT is reached.
@@ -64,7 +66,8 @@ class Executor:
         Raises:
             RuntimeError: if the machine is already halted before run() is called.
         """
-        pass
+        self._machine.run()
+        return self._machine.snapshot()
 
     # ------------------------------------------------------------------
     # State inspection
@@ -73,7 +76,7 @@ class Executor:
     @property
     def halted(self) -> bool:
         """True once a HALT instruction has executed."""
-        pass
+        return self._machine.halted
 
     @property
     def state(self) -> dict:
@@ -81,9 +84,9 @@ class Executor:
 
         Keys: ``"pc"``, ``"ac"``, ``"ir"``, ``"halted"``, ``"memory"``.
         """
-        pass
+        return self._machine.snapshot()
 
     @property
     def machine(self) -> MachineState:
         """Direct access to the underlying MachineState (for advanced use)."""
-        pass
+        return self._machine
