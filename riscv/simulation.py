@@ -20,14 +20,16 @@ class Simulation:
         if mnemonic == "sll" or mnemonic == "slli":
             return a << (b & 0b11111)  # logical left
         if mnemonic == "srl" or mnemonic == "srli":
-            return a >> (b & 0b11111)  # logical right
+            return (a & 0xFFFFFFFF) >> (b & 0b11111)   # logical right
         if mnemonic == "sra" or mnemonic == "srai":
-            return a >> (b & 0b11111)  # arithmetic right
+            return to_signed(a, 32) >> (b & 0b11111)   # arithmetic right
         if mnemonic == "slt" or mnemonic == "slti":
             return 1 if a < b else 0  # less than
         if mnemonic == "sltu" or mnemonic == "sltiu":
             # less than unsigned
             return 1 if (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF) else 0
+        
+        return 0
 
     def __init__(self, memory_depth=256):
         self.memory_depth = memory_depth
@@ -123,7 +125,9 @@ class Simulation:
 
                 result = to_signed(
                     byte, 8) if instr_mnemonic == "lb" else byte
-
+            else:
+                result = 0
+                
             self.registers.write(
                 instruction.rd, result
             )
