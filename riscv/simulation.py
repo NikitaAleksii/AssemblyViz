@@ -70,18 +70,26 @@ class Simulation:
 
         Iimm = instruction.Iimm
         Simm = instruction.Simm
+        Bimm = instruction.Bimm
+        Jimm = instruction.Jimm
+        Uimm = instruction.Uimm
 
         alu_out = self._alu(instr_mnemonic, rs1,
                             (rs2 if self.isOPreg else Iimm))
 
+        # Handle R-type instructions
         if instruction.isOPreg:
             self.registers.write(
                 instruction.rd, alu_out)
             self.PC += 4
+
+        # Handle I-type ALU instructions
         if instruction.isOPimm:
             self.registers.write(
                 instruction.rd, alu_out)
             self.PC += 4
+
+        # Handle Load
         if instruction.isLoad:          # needs halfword anbd byte handling
             load_addr = rs1 + Iimm
             read_val = int(self.memory.memory_read(load_addr), 2)
@@ -89,11 +97,66 @@ class Simulation:
                 instruction.rd, read_val
             )
             self.PC += 4
+
+        # Handle Store
         if instruction.isStore:         # needs halfword anbd byte handling
             write_addr = rs1 + Simm
             read_val = int(self.memory.memory_read(load_addr), 2)
             self.memory.memory_write(write_addr, read_val, "1111")
-            
+
+        # Handle Branches
+        if instruction.isBranch:
+            takeBranch = False
+
+            if instr_mnemonic == "beq" and rs1 == rs2:
+                takeBranch = True
+            elif instr_mnemonic == "bne" and rs1 != rs2:
+                takeBranch = True
+            elif instr_mnemonic == "blt" and rs1 < rs2:
+                takeBranch = True
+            elif instr_mnemonic == "bge" and rs1 >= rs2:
+                takeBranch = True
+            elif instr_mnemonic == "bltu" and (rs1 & 0xFFFFFFFF) < (rs2 & 0xFFFFFFFF):
+                takeBranch = True
+            elif instr_mnemonic == "bgeu" and (rs1 & 0xFFFFFFFF) >= (rs2 & 0xFFFFFFFF):
+                takeBranch = True
+
+            if takeBranch:
+                self.PC += Bimm
+            else:
+                self.PC += 4
+
+        # Handle Jump and Link (JAL)
+        if instruction.isJal:
+            self.registers.write(
+                instruction.rd, self.PC + 4
+            )
+            self.PC += Jimm
+
+        # Handle Jump and Link Register (JALR)
+        if instruction.isJalr:
+            self.registers.write(
+                instruction.rd, self.PC + 4
+            )
+            self.PC += Iimm
+
+        # Handle Load Upper Immediate (LUI)
+        if instruction.isLUI:
+            self.registers.write(
+                instruction.rd, Uimm
+            )
+            self.PC += 4
+
+        # Handle Add Upper Immediate to PC (AUIPC)
+        if instruction.isLUI:
+            self.registers.write(
+                instruction.rd, self.PC + Uimm
+            )
+            self.PC += 4
+
+        # Handle System calls
+        if instruction.isSystem:
+            self.halted = True
 
     def snapshot(self):
         return {
