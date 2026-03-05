@@ -75,7 +75,7 @@ class Simulation:
         Uimm = instruction.Uimm
 
         alu_out = self._alu(instr_mnemonic, rs1,
-                            (rs2 if self.isOPreg else Iimm))
+                            (rs2 if instruction.isOPreg else Iimm))
 
         # Handle R-type instructions
         if instruction.isOPreg:
@@ -84,28 +84,83 @@ class Simulation:
             self.PC += 4
 
         # Handle I-type ALU instructions
-        if instruction.isOPimm:
+        elif instruction.isOPimm:
             self.registers.write(
                 instruction.rd, alu_out)
             self.PC += 4
 
         # Handle Load
-        if instruction.isLoad:          # needs halfword anbd byte handling
+        elif instruction.isLoad:    
             load_addr = rs1 + Iimm
-            read_val = int(self.memory.memory_read(load_addr), 2)
+            word_addr = load_addr & ~0b11
+            read_val = int(self.memory.memory_read(word_addr), 2)
+
+            if instr_mnemonic == "lw":
+                result = read_val
+
+            elif instr_mnemonic in ("lh", "lhu"):
+                # bit 1 of address selects which halfword
+                if load_addr & 0b10:
+                    # select upper halfword
+                    halfword = (read_val >> 16) & 0xFFFF
+                else:
+                    halfword = read_val & 0xFFFF         # select lower halfword
+
+                result = to_signed(
+                    halfword, 16) if instr_mnemonic == "lh" else halfword
+
+            elif instr_mnemonic in ("lb", "lbu"):
+                # bits [1:0] select which byte
+                byte_select = load_addr & 0b11
+                if byte_select == 0:
+                    byte = read_val & 0xFF
+                elif byte_select == 1:
+                    byte = (read_val >> 8) & 0xFF
+                elif byte_select == 2:
+                    byte = (read_val >> 16) & 0xFF
+                else:
+                    byte = (read_val >> 24) & 0xFF
+
+                result = to_signed(
+                    byte, 8) if instr_mnemonic == "lb" else byte
+
             self.registers.write(
-                instruction.rd, read_val
+                instruction.rd, result
             )
             self.PC += 4
 
         # Handle Store
-        if instruction.isStore:         # needs halfword anbd byte handling
+        elif instruction.isStore:  
             write_addr = rs1 + Simm
-            read_val = int(self.memory.memory_read(load_addr), 2)
-            self.memory.memory_write(write_addr, read_val, "1111")
+            word_write = write_addr & ~0b11
 
-        # Handle Branches
-        if instruction.isBranch:
+            if instr_mnemonic == "sw":
+                self.memory.memory_write(word_write, rs2, "1111")
+
+            elif instr_mnemonic == "sh":
+                # bit 1 selects which halfword lane
+                if write_addr & 0b10:
+                    # store upper halfword
+                    self.memory.memory_write(word_write, rs2 << 16, "1100")
+                else:
+                    # store lower halfword
+                    self.memory.memory_write(word_write, rs2, "0011")
+
+            elif instr_mnemonic == "sb":
+                byte_select = write_addr & 0x3
+                if byte_select == 0:
+                    self.memory.memory_write(word_write, rs2, "0001")
+                elif byte_select == 1:
+                    self.memory.memory_write(word_write, rs2 << 8, "0010")
+                elif byte_select == 2:
+                    self.memory.memory_write(word_write, rs2 << 16, "0100")
+                else:
+                    self.memory.memory_write(word_write, rs2 << 24, "1000")
+
+            self.PC += 4
+
+            # Handle Branches
+        elif instruction.isBranch:
             takeBranch = False
 
             if instr_mnemonic == "beq" and rs1 == rs2:
@@ -127,35 +182,35 @@ class Simulation:
                 self.PC += 4
 
         # Handle Jump and Link (JAL)
-        if instruction.isJal:
+        elif instruction.isJal:
             self.registers.write(
                 instruction.rd, self.PC + 4
             )
             self.PC += Jimm
 
         # Handle Jump and Link Register (JALR)
-        if instruction.isJalr:
+        elif instruction.isJalr:
             self.registers.write(
                 instruction.rd, self.PC + 4
             )
-            self.PC += Iimm
+            self.PC = rs1 + Iimm
 
         # Handle Load Upper Immediate (LUI)
-        if instruction.isLUI:
+        elif instruction.isLUI:
             self.registers.write(
                 instruction.rd, Uimm
             )
             self.PC += 4
 
         # Handle Add Upper Immediate to PC (AUIPC)
-        if instruction.isLUI:
+        elif instruction.isAUIPC:
             self.registers.write(
                 instruction.rd, self.PC + Uimm
             )
             self.PC += 4
 
         # Handle System calls
-        if instruction.isSystem:
+        elif instruction.isSystem:
             self.halted = True
 
     def snapshot(self):
