@@ -26,19 +26,19 @@ test("add isOPreg", d.isOPreg, True)
 d = decode_first("addi x1, x2, 10")
 test("addi opcode",  d.opcode,  InstructionOpcodes.OPimm)
 test("addi isOPimm", d.isOPimm, True)
-test("addi Iimm",    int(d.Iimm, 2) & 0xFFF, 10)
+test("addi Iimm",    d.Iimm, 10)
 
 # --- LOAD: lw x1, 4(x2) ---
 d = decode_first("lw x1, 4(x2)")
 test("lw opcode", d.opcode, InstructionOpcodes.LOAD)
 test("lw isLoad", d.isLoad, True)
-test("lw Iimm",   int(d.Iimm, 2) & 0xFFF, 4)
+test("lw Iimm",   d.Iimm, 4)
 
 # --- STORE: sw x1, 4(x2) ---
 d = decode_first("sw x1, 4(x2)")
 test("sw opcode",  d.opcode,  InstructionOpcodes.STORE)
 test("sw isStore", d.isStore, True)
-test("sw Simm",    int(d.Simm, 2) & 0xFFF, 4)
+test("sw Simm",    d.Simm, 4)
 
 # --- BRANCH: beq x1, x2, label ---
 d = decode_first("beq x1, x2, label \n label:")
@@ -54,6 +54,6 @@ test("jal isJal",  d.isJal,  True)
 d = decode_first("lui x1, 5")
 test("lui opcode", d.opcode, InstructionOpcodes.LUI)
 test("lui isLUI",  d.isLUI,  True)
-test("lui Uimm",   int(d.Uimm, 2) >> 12, 5)
+test("lui Uimm",   d.Uimm, 5)
 
 print("\nDone.")

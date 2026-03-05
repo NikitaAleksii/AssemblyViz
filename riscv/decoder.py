@@ -22,6 +22,11 @@ Immediate decoding handles all 6 RV32I formats:
 - U-type: 20-bit upper immediate
 - J-type: 21-bit PC-relative jump offset, bits scattered across the word
 """
+def to_signed(value, bits):
+    if value >= (1 << (bits - 1)):
+        value  -= (1 << bits)
+    return value
+
 class DecodedInstruction:
     def __init__(self, instruction):
         # Convert a instruction code into a 32-bit string of binary numbers
@@ -49,15 +54,15 @@ class DecodedInstruction:
 
         sign = instruction[0]  # bit 31 = sign bit
 
-        self.Iimm = sign * 21 + instruction[1:12] # inst[31:20] sign-extended to 32 bits
-        self.Simm = sign * 21 + instruction[1:7] + instruction[20:25] # inst[31:25] + inst[11:7]
-        self.Bimm = sign * 20 + instruction[24] + \
+        self.Iimm = to_signed(int(sign * 21 + instruction[1:12], 2), 32) # inst[31:20] sign-extended to 32 bits
+        self.Simm = to_signed(int(sign * 21 + instruction[1:7] + instruction[20:25], 2), 32) # inst[31:25] + inst[11:7]
+        self.Bimm = to_signed(int(sign * 20 + instruction[24] + \
             instruction[1:7] + instruction[20:24] + \
-            '0'                                   # inst[31] + inst[7] + inst[30:25] + inst[11:8] + 0
-        self.Uimm = instruction[0:20] + '0' * 12  # inst[31:12] + 12 zeros
-        self.Jimm = sign * 12 + \
+            '0', 2), 32)                                   # inst[31] + inst[7] + inst[30:25] + inst[11:8] + 0
+        self.Uimm = int(instruction[0:20], 2)  # inst[31:12] + 12 zeros
+        self.Jimm = to_signed(int(sign * 12 + \
             instruction[12:20] + instruction[11] + instruction[1:11] + \
-            '0'                                   # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
+            '0', 2), 32)                                   # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
 
 
 def main():
