@@ -2,7 +2,7 @@
 
 Python backend for a RISC-V assembly visualizer. Handles assembling RV32I source code into 32-bit machine code words, which are then consumed by the frontend for visualization.
 
-> **Status:** In progress — assembler and ISA definitions are implemented. Decoder, memory, registers, and simulator are planned.
+> **Status:** In progress — assembler, ISA definitions, decoder, memory, and registers are implemented. Simulator is planned.
 
 ---
 
@@ -12,13 +12,15 @@ Python backend for a RISC-V assembly visualizer. Handles assembling RV32I source
 riscv/
 ├── tests/
 │   ├── __init__.py
-│   └── assembler_test.py   # Unit tests for the assembler
+│   ├── assembler_test.py   # Unit tests for the assembler
+│   ├── decoder_test.py     # Unit tests for the decoder
+│   └── memory_test.py      # Unit tests for the memory
 ├── __init__.py
 ├── isa.py                  # RV32I instruction set definitions (opcodes, formats, register names)
-├── assembler.py            # Assembles RV32I source text → list of 32-bit machine code words
-├── decoder.py              # (planned) Decodes machine code words → structured instruction objects
-├── memory.py               # (planned) Byte-addressable memory model
-├── registers.py            # (planned) x0–x31 register file
+├── assembler.py            # Assembles RV32I source text - list of 32-bit machine code words
+├── decoder.py              # Decodes machine code words - structured instruction objects
+├── memory.py               # Byte-addressable memory model
+├── registers.py            # x0–x31 register file
 └── simulator.py            # (planned) Step-through execution engine
 ```
 

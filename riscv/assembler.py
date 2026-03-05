@@ -1,8 +1,32 @@
 from riscv.isa import *
 
+"""
+Implements a RISC-V RV32I assembler.
+
+Takes a string of assembly source code and converts it into a list of
+32-bit machine code words that can be loaded into the memory model.
+
+Supports the full RV32I base integer instruction set:
+- R-type:  add, sub, and, or, xor, sll, srl, sra, slt, sltu
+- I-type:  addi, andi, ori, xori, slti, sltiu, slli, srli, srai
+- Load:    lw, lh, lb, lhu, lbu
+- Store:   sw, sh, sb
+- Branch:  beq, bne, blt, bge, bltu, bgeu
+- U-type:  lui, auipc
+- Jump:    jal, jalr
+- System:  ecall, ebreak
+
+Syntax rules:
+- Registers can be specified as x0–x31 or ABI names (zero, ra, sp, a0 … t6)
+- Immediates can be decimal (10) or hexadecimal (0xFF)
+- Comments start with # and are ignored
+- Blank lines are ignored
+
+Raises ValueError if an unknown instruction is encountered.
+"""
+
 pc = 0
 labels = {}
-
 
 def int_or_label(label) -> int:
     if label in labels:
@@ -119,24 +143,24 @@ def assemble_line(instruction: str) -> int:
 
     # ——————————————————— I-Type ALU ———————————————————
     elif mnemonic == "addi":
-        return encode_I(int(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "slti":
-        return encode_I(int(parts[3]), reg(parts[2]), 0b010, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0), reg(parts[2]), 0b010, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "sltiu":
-        return encode_I(int(parts[3]), reg(parts[2]), 0b011, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0), reg(parts[2]), 0b011, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "xori":
-        return encode_I(int(parts[3]), reg(parts[2]), 0b100, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0), reg(parts[2]), 0b100, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "ori":
-        return encode_I(int(parts[3]), reg(parts[2]), 0b110, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0), reg(parts[2]), 0b110, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "andi":
-        return encode_I(int(parts[3]), reg(parts[2]), 0b111, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0), reg(parts[2]), 0b111, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "slli":
-        return encode_I(int(parts[3]) & 0b11111, reg(parts[2]), 0b001, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0) & 0b11111, reg(parts[2]), 0b001, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "srli":
-        return encode_I(int(parts[3]) & 0b11111, reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I(int(parts[3], 0) & 0b11111, reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPimm)
     elif mnemonic == "srai":
         # srai encodes funct7=0100000 in the upper 7 bits of the immediate
-        return encode_I((0b0100000 << 5) | (int(parts[3]) & 0b11111), reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPimm)
+        return encode_I((0b0100000 << 5) | (int(parts[3], 0) & 0b11111), reg(parts[2]), 0b101, reg(parts[1]), InstructionOpcodes.OPimm)
 
     # ——————————————————— I-Type LOAD ———————————————————
     elif mnemonic in ["lw", "lh", "lb", "lbu", "lhu"]:
@@ -148,7 +172,7 @@ def assemble_line(instruction: str) -> int:
 
     # ——————————————————— I-Type JALR ———————————————————
     elif mnemonic == "jalr":
-        return encode_I(int(parts[3]), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.JALR)
+        return encode_I(int(parts[3], 0), reg(parts[2]), 0b000, reg(parts[1]), InstructionOpcodes.JALR)
 
     # ——————————————————— I-Type System ———————————————————
     elif mnemonic == "ecall":
@@ -171,9 +195,9 @@ def assemble_line(instruction: str) -> int:
 
     # ——————————————————— U-Type Branch ———————————————————
     elif mnemonic == "lui":
-        return encode_U(int(parts[2]), reg(parts[1]), InstructionOpcodes.LUI)
+        return encode_U(int(parts[2], 0), reg(parts[1]), InstructionOpcodes.LUI)
     elif mnemonic == "auipc":
-        return encode_U(int(parts[2]), reg(parts[1]), InstructionOpcodes.AUIPC)
+        return encode_U(int(parts[2], 0), reg(parts[1]), InstructionOpcodes.AUIPC)
 
     # ——————————————————— J-Type Branch ———————————————————
     elif mnemonic == "jal":
@@ -185,6 +209,8 @@ def assemble_line(instruction: str) -> int:
 def assemble(source: str) -> list[int]:
     global pc
     global labels
+    pc = 0
+    labels = {}    
 
     words = []
 
