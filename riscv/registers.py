@@ -11,7 +11,12 @@ class Registers:
         self.regs = [0] * 32
 
     def read(self, index) -> int:
-        return 0 if index == 0 else self.regs[index]
+        value = 0 if index == 0 else self.regs[index]
+        
+        # convert back to signed 32-bit
+        if value >= (1 << 31):
+            value -= (1 << 32)
+        return value
 
     def write(self, index, value):
         if index != 0:

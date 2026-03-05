@@ -202,14 +202,14 @@ class Simulation:
         # Handle Load Upper Immediate (LUI)
         elif instruction.isLUI:
             self.registers.write(
-                instruction.rd, Uimm
+                instruction.rd, Uimm << 12
             )
             self.PC += 4
 
         # Handle Add Upper Immediate to PC (AUIPC)
         elif instruction.isAUIPC:
             self.registers.write(
-                instruction.rd, self.PC + Uimm
+                instruction.rd, self.PC + (Uimm << 12)
             )
             self.PC += 4
 
