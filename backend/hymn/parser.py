@@ -15,6 +15,7 @@ class ParseError:
 # ---------------------------------------------------------------------------
 # Compiled regex patterns
 # ---------------------------------------------------------------------------
+
 _LABEL_DEF = re.compile(r'^[A-Z_][A-Z0-9_]*:$')    # e.g.  LOOP:
 _DECIMAL   = re.compile(r'^[0-9]+$')                # e.g.  5  31
 _LABEL_REF = re.compile(r'^[A-Z_][A-Z0-9_]*$')     # e.g.  LOOP  (no colon)
