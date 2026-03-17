@@ -28,7 +28,7 @@ class Simulation:
         if mnemonic == "sltu" or mnemonic == "sltiu":
             # less than unsigned
             return 1 if (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF) else 0
-        
+
         return 0
 
     def __init__(self, memory_depth=256):
@@ -44,6 +44,7 @@ class Simulation:
             self.memory.memory_write(i * 4, word, "1111")
         self.PC = 0
         self.halted = False
+        self.registers.write(2, self.memory_depth)
 
     def step(self):
         if self.halted:
@@ -92,7 +93,7 @@ class Simulation:
             self.PC += 4
 
         # Handle Load
-        elif instruction.isLoad:    
+        elif instruction.isLoad:
             load_addr = rs1 + Iimm
             word_addr = load_addr & ~0b11
             read_val = int(self.memory.memory_read(word_addr), 2)
@@ -127,14 +128,14 @@ class Simulation:
                     byte, 8) if instr_mnemonic == "lb" else byte
             else:
                 result = 0
-                
+
             self.registers.write(
                 instruction.rd, result
             )
             self.PC += 4
 
         # Handle Store
-        elif instruction.isStore:  
+        elif instruction.isStore:
             write_addr = rs1 + Simm
             word_write = write_addr & ~0b11
 
@@ -215,7 +216,13 @@ class Simulation:
 
         # Handle System calls
         elif instruction.isSystem:
-            self.halted = True
+            a7 = self.registers.read(17)  # syscall number
+            if a7 == 1:    # print integer - keep running
+                self.PC += 4
+            elif a7 == 4:  # print string — keep running
+                self.PC += 4
+            else:          # exit (10) or unknown — halt
+                self.halted = True
 
     def snapshot(self):
         return {
