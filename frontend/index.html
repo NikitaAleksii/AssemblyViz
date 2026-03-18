@@ -1,25 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>AssemblyViz</title>
-    
-    <!-- CSS -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
+    <header class="topbar">
+        <div class="logo">AssemblyViz</div>
 
-    <header>
-        <h1>AssemblyViz</h1>
+        <div class="top-tabs">
+            <button class="tab active">Editor</button>
+            <button class="tab">Memory</button>
+        </div>
+
+        <div class="top-controls">
+            <button class="icon-btn">⏮</button>
+            <button class="icon-btn">▶</button>
+            <button class="icon-btn">⏭</button>
+            <button class="icon-btn">↻</button>
+        </div>
+
+        <div class="speed-control">
+            <input type="range" min="0" max="100" value="20">
+            <span>200 ms</span>
+        </div>
+
+        <div class="mode-switch">
+            <button class="mode active">HYMN</button>
+            <button class="mode">RISC-V</button>
+        </div>
     </header>
 
-    <main>
-        
+    <main class="main-layout">
+        <section class="left-panel">
+            <div class="panel-header">
+                <h2>CODE EDITOR</h2>
+                <div class="editor-actions">
+                    <button>IMPORT</button>
+                    <button>EXPORT</button>
+                    <button class="primary">ASSEMBLE</button>
+                </div>
+            </div>
+
+            <div class="editor-box">
+                <div class="line-numbers">
+                    <span>1</span>
+                    <span>2</span>
+                    <span>3</span>
+                    <span>4</span>
+                    <span>5</span>
+                    <span>6</span>
+                </div>
+
+                <textarea placeholder="Write HYMN code here..."></textarea>
+            </div>
+
+            <div class="output-section">
+                <h3>OUTPUT</h3>
+                <div class="output-box">No output yet...</div>
+            </div>
+        </section>
+
+        <section class="center-panel">
+            <div class="panel-header">
+                <h2>RESULTS</h2>
+                <button>EXPORT CODE</button>
+            </div>
+
+            <div class="results-box">
+                <div class="results-header">
+                    <span>ADDRESS</span>
+                    <span>CODE</span>
+                    <span>INSTRUCTION</span>
+                </div>
+
+                <div class="results-body"></div>
+            </div>
+        </section>
+
+        <section class="right-panel">
+            <div class="panel-header">
+                <h2>REGISTER</h2>
+                <select>
+                    <option>HEXADECIMAL</option>
+                </select>
+            </div>
+
+            <div class="register-box">
+                <div class="register-header">
+                    <span>NAME</span>
+                    <span>NUMBER</span>
+                    <span>VALUE</span>
+                </div>
+
+                <div class="register-body">
+                    <div class="register-row">
+                        <span>PC</span>
+                        <span>0</span>
+                        <span>0x01</span>
+                    </div>
+
+                    <div class="register-row">
+                        <span>IR</span>
+                        <span>1</span>
+                        <span>HALT</span>
+                    </div>
+
+                    <div class="register-row">
+                        <span>AC</span>
+                        <span>2</span>
+                        <span>0x08</span>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
-    <!-- JavaScript -->
     <script src="script.js"></script>
-
 </body>
+
 </html>
