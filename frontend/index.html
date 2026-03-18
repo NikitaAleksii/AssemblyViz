@@ -12,25 +12,25 @@
         <div class="logo">AssemblyViz</div>
 
         <div class="top-tabs">
-            <button class="tab active">Editor</button>
-            <button class="tab">Memory</button>
+            <button class="tab active" id="editorTab" type="button">Editor</button>
+            <button class="tab" id="memoryTab" type="button">Memory</button>
         </div>
 
         <div class="top-controls">
-            <button class="icon-btn">⏮</button>
-            <button class="icon-btn">▶</button>
-            <button class="icon-btn">⏭</button>
-            <button class="icon-btn">↻</button>
+            <button class="icon-btn" id="backBtn" type="button" title="Back">⏮</button>
+            <button class="icon-btn" id="playBtn" type="button" title="Run">▶</button>
+            <button class="icon-btn" id="stepBtn" type="button" title="Step">⏭</button>
+            <button class="icon-btn" id="resetBtn" type="button" title="Reset">↻</button>
         </div>
 
         <div class="speed-control">
-            <input type="range" min="0" max="100" value="20">
-            <span>200 ms</span>
+            <input type="range" id="speedSlider" min="50" max="1000" step="50" value="200">
+            <span id="speedValue">200 ms</span>
         </div>
 
         <div class="mode-switch">
-            <button class="mode active">HYMN</button>
-            <button class="mode">RISC-V</button>
+            <button class="mode active" id="hymnMode" type="button">HYMN</button>
+            <button class="mode" id="riscvMode" type="button">RISC-V</button>
         </div>
     </header>
 
@@ -39,9 +39,9 @@
             <div class="panel-header">
                 <h2>CODE EDITOR</h2>
                 <div class="editor-actions">
-                    <button>IMPORT</button>
-                    <button>EXPORT</button>
-                    <button class="primary">ASSEMBLE</button>
+                    <button id="importBtn" type="button">IMPORT</button>
+                    <button id="exportBtn" type="button">EXPORT</button>
+                    <button class="primary" id="assembleBtn" type="button">ASSEMBLE</button>
                 </div>
             </div>
 
@@ -55,19 +55,19 @@
                     <span>6</span>
                 </div>
 
-                <textarea placeholder="Write HYMN code here..."></textarea>
+                <textarea id="codeInput" placeholder="Write HYMN code here..."></textarea>
             </div>
 
             <div class="output-section">
                 <h3>OUTPUT</h3>
-                <div class="output-box">No output yet...</div>
+                <div class="output-box" id="outputBox">No output yet...</div>
             </div>
         </section>
 
         <section class="center-panel">
             <div class="panel-header">
                 <h2>RESULTS</h2>
-                <button>EXPORT CODE</button>
+                <button id="exportCodeBtn" type="button">EXPORT CODE</button>
             </div>
 
             <div class="results-box">
@@ -77,15 +77,17 @@
                     <span>INSTRUCTION</span>
                 </div>
 
-                <div class="results-body"></div>
+                <div class="results-body" id="resultsBody"></div>
             </div>
         </section>
 
         <section class="right-panel">
             <div class="panel-header">
                 <h2>REGISTER</h2>
-                <select>
+                <select id="registerFormat">
                     <option>HEXADECIMAL</option>
+                    <option>DECIMAL</option>
+                    <option>BINARY</option>
                 </select>
             </div>
 
@@ -96,7 +98,7 @@
                     <span>VALUE</span>
                 </div>
 
-                <div class="register-body">
+                <div class="register-body" id="registerBody">
                     <div class="register-row">
                         <span>PC</span>
                         <span>0</span>
