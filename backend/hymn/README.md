@@ -1,16 +1,14 @@
 # HYMN
 
-HYMN (Hypothetical Yet Minimalist Notation) is an 8-bit assembly language simulator. It models a CPU with 32 bytes of memory, three registers, and eight instructions.
+HYMN is an 8-bit assembly language simulator. It models a CPU with 32 bytes of memory, three registers, and eight instructions.
 
 ## Architecture
 
 ### Registers
 
-| Register | Role |
-|---|---|
-| **PC** (Program Counter) | Points to the next instruction in memory |
-| **AC** (Accumulator) | General-purpose register where all math happens |
-| **IR** (Instruction Register) | Holds the raw instruction word just fetched from memory |
+| **PC** (Program Counter) ->  Points to the next instruction in memory 
+| **AC** (Accumulator) ->  General-purpose register where all math happens 
+| **IR** (Instruction Register) ->  Holds the raw instruction word just fetched from memory 
 
 ### Instruction Encoding
 
@@ -42,17 +40,17 @@ Each instruction is a single 8-bit word:
 In addition to the eight instructions listed above, the Hymn architecture supports two further “pseudo-ops”: READ and WRITE. As their names suggest, these
 instructions read from and write to the I/O console, respectively.
 
-## Modules
+## py files:
 
 ### `instructions.py`
 
-Defines the `InstructionDef` dataclass and the `INSTRUCTIONS` / `INSTRUCTIONS_BY_OPCODE` registries. Each instruction's mnemonic, opcode, and operand types are declared here.
+Defines the `InstructionDef` data structure and the `INSTRUCTIONS` / `INSTRUCTIONS_BY_OPCODE` registries. Each instruction's mnemonic, opcode, and operand types are declared here.
 
 ### `parser.py`
 
-Two-pass assembler that converts HYMN assembly source text into a list of 8-bit machine words.
+Two-pass parser that tockenizes HYMN assembly source text into a list of 8-bit machine words.
 
-- **First pass**: builds a symbol table mapping labels (e.g. `LOOP:`) to memory addresses.
+- **First pass**: builds a symbol table mapping labels (e.g. `LOOP: or FLAG:`) to memory addresses.
 - **Second pass**: encodes each instruction, resolving label references via the symbol table.
 
 Supports comments (`;`), labels on their own line or inline with instructions, and case-insensitive mnemonics. Parse errors are collected and accessible via the `errors` property.
@@ -63,7 +61,7 @@ The `MachineState` class simulating the HYMN CPU. Manages the three registers, 3
 
 ### `executor.py`
 
-High-level wrapper around `MachineState`. Provides `load()`, `step()`, `run()`, and `reset()` with a cleaner API that returns state snapshots after each action.
+High-level wrapper around `MachineState`. Provides `load()`, `step()`, `run()`, and `reset()` to link with front end environment.
 
 ### `debugger.py`
 
@@ -115,3 +113,25 @@ Run them with:
 cd backend/hymn
 pytest
 ```
+# Manual Testing
+
+Along with pytests, assembly programs from previous homework assignments were run in our implementation of HYMN and compared to the actual SimHYMN json.
+
+programs used:
+
+- `Sumn` - takes in an input number n and returns the sum of 0 - n
+- `mult` - multiplies two input numbers together
+- `primes`- prints first 12 prime numbers
+- `virus` - copies its own code into memory
+
+Each program is first run in the simHYMN json file to record:
+
+- The final AC value
+- The final memory contents                                                              
+- I/O output                                         
+- The PC value when it halted   
+
+The same programs are run through this repo implementation through a python shell
+
+-same final values were recorded to ensure each file acted according to the hymn simulation
+
