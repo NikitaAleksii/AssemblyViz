@@ -229,3 +229,56 @@ class Simulation:
             ],
             "memory": self.memory.memory
         }
+    
+def main():
+    
+    sim = Simulation()
+
+    # ─────────────────────────────────────────────
+    # Find maximum of two numbers
+    # ─────────────────────────────────────────────
+    print("\n=== Max of two numbers ===")
+
+    sim.reset()
+    sim.load("""
+        addi x1, x0, 7
+        addi x2, x0, 12
+        bge  x1, x2, done
+        addi x3, x2, 0
+        jal  x0, end
+        done:
+        addi x3, x1, 0
+        end:
+        ecall
+    """)
+
+    while not sim.snapshot()["halted"]:
+        sim.step()
+
+    print(f"max(7, 12) = {sim.snapshot()['registers'][3]['value']}")
+
+    # ─────────────────────────────────────────────
+    # Sum 1 to 10
+    # ─────────────────────────────────────────────
+    print("\n=== Sum 1 to 10 ===")
+
+    sim.reset()
+    sim.load("""
+        addi x1, x0, 1
+        addi x2, x0, 10
+        addi x3, x0, 0
+        loop:
+        add  x3, x3, x1
+        addi x1, x1, 1
+        bge  x2, x1, loop
+        ecall
+    """)
+
+    while not sim.snapshot()["halted"]:
+        sim.step()
+
+    print(f"sum(1..10) = {sim.snapshot()['registers'][3]['value']}")
+
+
+if __name__ == "__main__":
+    main()
