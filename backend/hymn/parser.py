@@ -162,6 +162,21 @@ class Parser:
         """
         mnemonic = tokens[0]
 
+        # Pseudo-ops: READ → LOAD 30 (0b11110), WRITE → STOR 31 (0b11111)
+        if mnemonic == "READ":
+            if len(tokens) != 1:
+                self._add_error(line_number, ' '.join(tokens),
+                                "'READ' takes no operands")
+                return None
+            return (0b100 << 5) | 0b11110   # LOAD 30
+
+        if mnemonic == "WRITE":
+            if len(tokens) != 1:
+                self._add_error(line_number, ' '.join(tokens),
+                                "'WRITE' takes no operands")
+                return None
+            return (0b101 << 5) | 0b11111   # STOR 31
+
         if mnemonic not in INSTRUCTIONS:
             self._add_error(line_number, ' '.join(tokens),
                             f"Unknown mnemonic: '{mnemonic}'")

@@ -17,9 +17,14 @@ class Executor:
         print(ex.state)
     """
 
-    def __init__(self) -> None:
-        """Create an Executor backed by a freshly reset MachineState."""
-        self._machine = MachineState()
+    def __init__(self, input_fn=None, output_fn=None) -> None:
+        """Create an Executor backed by a freshly reset MachineState.
+
+        Args:
+            input_fn:  Passed to MachineState for READ (LOAD 30) handling.
+            output_fn: Passed to MachineState for WRITE (STOR 31) handling.
+        """
+        self._machine = MachineState(input_fn=input_fn, output_fn=output_fn)
 
     # ------------------------------------------------------------------
     # Program management

@@ -25,7 +25,11 @@ class MachineState:
     └───────────────────────────┴──────────────────────────────────────────────────────────┘
     """
 
-    MEMORY_SIZE = 32#bytes
+    MEMORY_SIZE = 32  # bytes
+
+    # Memory-mapped I/O addresses (not shown as normal memory in the simulator)
+    READ_ADDR  = 0b11110  # 30 — keyboard input  (used by LOAD 30 / READ pseudo-op)
+    WRITE_ADDR = 0b11111  # 31 — console output  (used by STOR 31 / WRITE pseudo-op)
 
     # Opcode constants
     HALT = 0b000
@@ -45,17 +49,29 @@ class MachineState:
     SUB  = 0b111
     #AC = AC - memory[address]  
 
-    def __init__(self) -> None:
-        """Initialise the machine with all registers zero and memory cleared."""
+    def __init__(self, input_fn=None, output_fn=None) -> None:
+        """Initialise the machine with all registers zero and memory cleared.
+
+        Args:
+            input_fn:  Callable() -> int used for LOAD 30 (READ).
+                       Defaults to prompting the console with ``input("? ")``.
+            output_fn: Callable(int) used for STOR 31 (WRITE).
+                       Defaults to ``print``.
+        """
+        self._input_fn  = input_fn  or (lambda: int(input("? ")))
+        self._output_fn = output_fn or print
+        self._io_output: list[int] = []
         self.reset()
 
     def reset(self) -> None:
-        """Return every register and every memory cell to zero."""
+        """Return every register and every memory cell to zero.
+        Also clears the I/O output log."""
         self._memory = [0] * self.MEMORY_SIZE  # list of ints, each 0-255
         self._pc = 0   # program counter  (0-31)
         self._ac = 0   # accumulator      (signed Python int)
         self._ir = 0   # instruction register (raw 8-bit instruction word)
         self._halted = False
+        self._io_output = []
 
 
     def read_memory(self, address: int) -> int:
@@ -194,14 +210,21 @@ class MachineState:
                 #PC = address if AC>0, else PC += 1, nothing happens to AC/memory
 
         elif opcode == self.LOAD:
-            self._ac = self._memory[address]
+            if address == self.READ_ADDR:
+                self._ac = self._input_fn()   # memory-mapped keyboard input
+            else:
+                self._ac = self._memory[address]
             self._pc += 1
-            #PC += 1, AC = memory[address]  
+            #PC += 1, AC = memory[address] (or keyboard if address == READ_ADDR)
 
         elif opcode == self.STOR:
-            self._memory[address] = self._ac
+            if address == self.WRITE_ADDR:
+                self._output_fn(self._ac)     # memory-mapped console output
+                self._io_output.append(self._ac)
+            else:
+                self._memory[address] = self._ac
             self._pc += 1
-            #PC += 1, memory[address] = AC   
+            #PC += 1, memory[address] = AC (or console if address == WRITE_ADDR)
 
         elif opcode == self.ADD:
             self._ac = self._ac + self._memory[address]
@@ -232,11 +255,12 @@ class MachineState:
     def snapshot(self) -> dict:
         """Return a JSON-serialisable dict of the complete machine state."""
         return {
-            "pc":     self._pc,
-            "ac":     self._ac,
-            "ir":     self._ir,
-            "halted": self._halted,
-            "memory": list(self._memory),
+            "pc":        self._pc,
+            "ac":        self._ac,
+            "ir":        self._ir,
+            "halted":    self._halted,
+            "memory":    list(self._memory),
+            "io_output": list(self._io_output),
         }
 
     def __repr__(self) -> str:

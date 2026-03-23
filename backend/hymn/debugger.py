@@ -2,7 +2,6 @@ from __future__ import annotations
 from hymn.executor import Executor
 from hymn.machine import MachineState
 
-
 class Debugger:
     """Adds breakpoint and step-through control on top of an Executor.
 

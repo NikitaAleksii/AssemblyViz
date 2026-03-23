@@ -7,9 +7,6 @@
 - **Robby Votta** - Developer
 - **Yurdanur Yolcu** - Developer
 
-
-
-
 ***Full Tech Stack***
 
 ├── frontend/           # React + TypeScript
