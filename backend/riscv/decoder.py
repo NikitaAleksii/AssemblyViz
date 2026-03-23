@@ -66,6 +66,7 @@ class DecodedInstruction:
 
 
 def main():
+    
     # Print fields of decoded instruction
     def print_decoded_instr(self):
         print("========= Decoded Instruction =========")
