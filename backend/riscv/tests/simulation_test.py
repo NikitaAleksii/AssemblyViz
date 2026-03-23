@@ -16,7 +16,7 @@ def main():
     arr_quantity = 7
     
     for i in range(arr_quantity):
-        print(int(sim.memory.memory_read(arr_addr + i * 4), 2))
+        print(sim.memory.memory_read(arr_addr + i * 4))
 
 if __name__ == "__main__":
     main()

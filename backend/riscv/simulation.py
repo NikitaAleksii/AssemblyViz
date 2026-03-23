@@ -50,7 +50,7 @@ class Simulation:
         if self.halted:
             return self.snapshot()
 
-        word = int(self.memory.memory_read(self.PC), 2)
+        word = self.memory.memory_read(self.PC)
         instruction = DecodedInstruction(word)
         self._execute(instruction)
 
@@ -96,7 +96,7 @@ class Simulation:
         elif instruction.isLoad:
             load_addr = rs1 + Iimm
             word_addr = load_addr & ~0b11
-            read_val = int(self.memory.memory_read(word_addr), 2)
+            read_val = self.memory.memory_read(word_addr)
 
             if instr_mnemonic == "lw":
                 result = read_val

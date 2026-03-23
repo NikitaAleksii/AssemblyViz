@@ -17,31 +17,30 @@ class Memory:
 
         # Initialize all memory slots to 0
         for i in range(self.memory_slots):
-            self.memory[i] = "0" * 32
+            self.memory[i] = 0
 
     def memory_write(self, address, value, mask):
         try:
             if (address % 4 == 0):
                 # Calculate the address in the memory
                 index = int(address/4)
-                # Convert an integer input into 32-bit string
-                value = format(value & 0xFFFFFFFF, "032b")
+                value = value & 0xFFFFFFFF
+                current = self.memory[index]
 
                 # Based on the input of mask, edit the contents of a memory slots.
                 # Used for storing words, halfwords, and bytes.
-                if (mask[0] == "1"):
-                    self.memory[index] = value[0:8] + self.memory[index][8:32]
-                if (mask[1] == "1"):
-                    self.memory[index] = self.memory[index][0:8] + \
-                        value[8:16] + self.memory[index][16:32]
-                if (mask[2] == "1"):
-                    self.memory[index] = self.memory[index][0:16] + \
-                        value[16:24] + self.memory[index][24:32]
-                if (mask[3] == "1"):
-                    self.memory[index] = self.memory[index][0:24] + \
-                        value[24:32]
+            if mask[0] == "1":
+                current = (current & 0x00FFFFFF) | (value & 0xFF000000)
+            if mask[1] == "1":
+                current = (current & 0xFF00FFFF) | (value & 0x00FF0000)
+            if mask[2] == "1":
+                current = (current & 0xFFFF00FF) | (value & 0x0000FF00)
+            if mask[3] == "1":
+                current = (current & 0xFFFFFF00) | (value & 0x000000FF)
             else:
                 raise ValueError()
+            
+            self.memory[index] = current
         except ValueError:
             print("Address doesn't exist in memory")
 

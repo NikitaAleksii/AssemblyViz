@@ -22,51 +22,74 @@ Immediate decoding handles all 6 RV32I formats:
 - U-type: 20-bit upper immediate
 - J-type: 21-bit PC-relative jump offset, bits scattered across the word
 """
+
+
 def to_signed(value, bits):
     if value >= (1 << (bits - 1)):
-        value  -= (1 << bits)
+        value -= (1 << bits)
     return value
+
 
 class DecodedInstruction:
     def __init__(self, instruction):
-        # Convert a instruction code into a 32-bit string of binary numbers
-        instruction = format(instruction, '032b')
-
         # Initialize instruction fields
-        self.opcode = int(instruction[25:], 2)
-        self.rd = int(instruction[20:25], 2)
-        self.funct3 = int(instruction[17:20], 2)
-        self.rs1 = int(instruction[12:17], 2)
-        self.rs2 = int(instruction[7:12], 2)
-        self.funct7 = int(instruction[0:7], 2)
+        self.opcode = instruction & 0b1111111
+        self.rd = (instruction >> 7) & 0b11111
+        self.funct3 = (instruction >> 12) & 0b111
+        self.rs1 = (instruction >> 15) & 0b11111
+        self.rs2 = (instruction >> 20) & 0b11111
+        self.funct7 = (instruction >> 25) & 0b1111111
 
         # Initialize the flags of each instruction opcode
-        self.isOPreg = (self.opcode == InstructionOpcodes.OPreg)    # rd <- rs1 OP rs2
-        self.isOPimm = (self.opcode == InstructionOpcodes.OPimm)    # rd <- rs1 OP Iimm
-        self.isLoad = (self.opcode == InstructionOpcodes.LOAD)      # rd <- mem[rs1 + Iimm]
-        self.isStore = (self.opcode == InstructionOpcodes.STORE)    # mem[rs1 + Simm] <- rs2
-        self.isBranch = (self.opcode == InstructionOpcodes.BRANCH)  # if (rs1 OP rs2) PC <- PC + Bimm
-        self.isJal = (self.opcode == InstructionOpcodes.JAL)        # rd <- PC+4; PC <- rs1 + Jimm
-        self.isJalr = (self.opcode == InstructionOpcodes.JALR)      # rd <- PC+4; PC <- Iimm
-        self.isLUI = (self.opcode == InstructionOpcodes.LUI)        # rd <- Uimm
-        self.isAUIPC = (self.opcode == InstructionOpcodes.AUIPC)    # rd <- PC + Uimm 
+        # rd <- rs1 OP rs2
+        self.isOPreg = (self.opcode == InstructionOpcodes.OPreg)
+        # rd <- rs1 OP Iimm
+        self.isOPimm = (self.opcode == InstructionOpcodes.OPimm)
+        # rd <- mem[rs1 + Iimm]
+        self.isLoad = (self.opcode == InstructionOpcodes.LOAD)
+        # mem[rs1 + Simm] <- rs2
+        self.isStore = (self.opcode == InstructionOpcodes.STORE)
+        # if (rs1 OP rs2) PC <- PC + Bimm
+        self.isBranch = (self.opcode == InstructionOpcodes.BRANCH)
+        # rd <- PC+4; PC <- rs1 + Jimm
+        self.isJal = (self.opcode == InstructionOpcodes.JAL)
+        # rd <- PC+4; PC <- Iimm
+        self.isJalr = (self.opcode == InstructionOpcodes.JALR)
+        # rd <- Uimm
+        self.isLUI = (self.opcode == InstructionOpcodes.LUI)
+        # rd <- PC + Uimm
+        self.isAUIPC = (self.opcode == InstructionOpcodes.AUIPC)
         self.isSystem = (self.opcode == InstructionOpcodes.SYSTEM)  # special
 
-        sign = instruction[0]  # bit 31 = sign bit
-
-        self.Iimm = to_signed(int(sign * 21 + instruction[1:12], 2), 32) # inst[31:20] sign-extended to 32 bits
-        self.Simm = to_signed(int(sign * 21 + instruction[1:7] + instruction[20:25], 2), 32) # inst[31:25] + inst[11:7]
-        self.Bimm = to_signed(int(sign * 20 + instruction[24] + \
-            instruction[1:7] + instruction[20:24] + \
-            '0', 2), 32)                                   # inst[31] + inst[7] + inst[30:25] + inst[11:8] + 0
-        self.Uimm = int(instruction[0:20], 2)  # inst[31:12] + 12 zeros
-        self.Jimm = to_signed(int(sign * 12 + \
-            instruction[12:20] + instruction[11] + instruction[1:11] + \
-            '0', 2), 32)                                   # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
+        # inst[31:20] sign-extended to 32 bits
+        self.Iimm = to_signed((instruction >> 20), 12)
+        
+        # inst[31:25] + inst[11:7]
+        self.Simm = to_signed(((instruction >> 25) << 5)
+                              | ((instruction >> 7) & 0b11111), 12)
+        
+        # inst[31] + inst[7] + inst[30:25] + inst[11:8] + 0
+        self.Bimm = to_signed(
+            (((instruction >> 31) & 1) << 12) |
+            (((instruction >> 7) & 1) << 11) |
+            (((instruction >> 25) & 0b111111) << 5) |
+            (((instruction >> 8) & 0b1111) << 1),
+            13)
+        
+        # inst[31:12] + 12 zeros
+        self.Uimm = (instruction >> 12) & 0xFFFFF
+        
+        # inst[31] + inst[19:12] + inst[20] + inst[30:21] + 0
+        self.Jimm = to_signed(
+            (((instruction >> 31) & 1) << 20) |
+            (((instruction >> 12) & 0xFF) << 12) |
+            (((instruction >> 20) & 1) << 11) |
+            (((instruction >> 21) & 0x3FF) << 1),
+            21)
 
 
 def main():
-    
+
     # Print fields of decoded instruction
     def print_decoded_instr(self):
         print("========= Decoded Instruction =========")
