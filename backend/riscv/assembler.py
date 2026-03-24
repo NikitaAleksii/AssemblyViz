@@ -25,10 +25,12 @@ Syntax rules:
 Raises ValueError if an unknown instruction is encountered.
 """
 
-_pc = 0
-_labels = {}
+_pc = 0         # program counter
+_labels = {}    # stores a label and address associated with that label
 
-
+# Used when instruction operand can either be a label or numerical literal
+# If the label is in labels, it returns an offset from the current PC
+# Otherwise, it parses the label as a plain interger
 def _int_or_label(label) -> int:
     if label in _labels:
         return _labels[label] - _pc
@@ -37,8 +39,6 @@ def _int_or_label(label) -> int:
 
 # Register Instruction
 # funct7(7b) | rs2(5b) | rs1(5b) | funct3(3b) | opcode(7b)
-
-
 def _encode_R(funct7, rs2, rs1, funct3, rd, opcode) -> int:
     return (
         ((funct7 & 0b1111111) << 25) |
@@ -51,8 +51,6 @@ def _encode_R(funct7, rs2, rs1, funct3, rd, opcode) -> int:
 
 # Immediate Instruction
 # imm(12b) | rs1(5b) | funct3(3b) | rd(5b) | opcode(7b)
-
-
 def _encode_I(imm, rs1, funct3, rd, opcode) -> int:
     return (
         ((imm & 0b111111111111) << 20) |  # imm[11:0] - bits 31-20
@@ -64,8 +62,6 @@ def _encode_I(imm, rs1, funct3, rd, opcode) -> int:
 
 # Store Instruction
 # imm[11:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:0] | opcode(7b)
-
-
 def _encode_S(imm, rs2, rs1, funct3, opcode) -> int:
     return (
         (((imm >> 5) & 0b1111111) << 25) |  # imm[11:5] - bits 31-25
@@ -78,8 +74,6 @@ def _encode_S(imm, rs2, rs1, funct3, opcode) -> int:
 
 # Branch Instruction
 # imm[12] | imm[10:5] | rs2(5b) | rs1(5b) | funct3(3b) | imm[4:1] | imm[11] | opcode(7b)
-
-
 def _encode_B(imm, rs2, rs1, funct3, opcode) -> int:
     return (
         (((imm >> 12) & 0b1) << 31) |  # imm[12]
@@ -94,8 +88,6 @@ def _encode_B(imm, rs2, rs1, funct3, opcode) -> int:
 
 # Upper Immediate Instruction
 # imm[31:12] | rd(5b) | opcode(7b)
-
-
 def _encode_U(imm, rd, opcode) -> int:
     return (
         ((imm & 0b11111111111111111111) << 12) |  # imm[19:0]
@@ -105,8 +97,6 @@ def _encode_U(imm, rd, opcode) -> int:
 
 # Unconditional Jump
 # imm[20] | imm[10:1] | imm[11] | imm[19:12] | rd(5b) | opcode(7b)
-
-
 def _encode_J(imm, rd, opcode) -> int:
     return (
         (((imm >> 20) & 0b1) << 31) |  # imm[20]
@@ -117,17 +107,23 @@ def _encode_J(imm, rd, opcode) -> int:
         (opcode & 0b1111111)
     )
 
-
+# Application Binary Interface
 ABI = {name: i for i, name in enumerate(REGISTER_NAMES)}
 
-
+# Converts register token into its index (0-31)
+# It handles both numeric names (x5) and ABI (t0, sp, a0) by looking up the ABI dict built from REGISTER_NAMES
 def _reg(name: str) -> int:
     name = name.strip().lower()
     if name in ABI:
         return ABI[name]
     return int(name[1:])
 
-
+# This is the main function that handles one real (non-pseudo) instruction string
+#
+# It splits the line into tokens, reads the mnemonic, and 
+# dispatches to the appropriate _encode_* function with the right fields
+#
+# It raises ValueError for any unrecognized mnemonic
 def _assemble_line(instruction: str) -> int:
     parts = instruction.replace(",", "").split()
     mnemonic = parts[0].lower()
@@ -218,7 +214,13 @@ def _assemble_line(instruction: str) -> int:
 
     raise ValueError(f"Unknown Instruction: {mnemonic}")
 
-
+# Predicts how many 32-bit words a line will emit without actually assembling it
+# This is needed during the label-scanning pass so that label addresses 
+# can be calculated correctly before any encoding happens
+# 
+# la always expands to 2 words
+# li expands to 1 or 2 depending on whether the immediate fits in 12 bits
+# everything else is 1
 def _pseudo_size(line: str) -> int:
     parts = line.replace(",", "").split()
     if not parts:
@@ -234,7 +236,7 @@ def _pseudo_size(line: str) -> int:
             return 1
     return 1
 
-
+# Expands pseudo-instructions into real machine words
 def _assemble_pseudo(line: str) -> list[int]:
     parts = line.replace(",", "").split()
     if not parts:
@@ -301,7 +303,12 @@ def _assemble_pseudo(line: str) -> list[int]:
 
 _ESCAPES = {"n": 10, "t": 9, "r": 13, "0": 0, "\\": 92, '"': 34, "'": 39}
 
-
+# Converts a quoted string literal (like "hello\n") into a list of byte values
+# Handles standard escape sequences via the _ESCAPES lookup table.
+#
+# _parse_string('"hi\n"')
+# 'h' -> 104, 'i' -> 105, '\n' -> 10
+# returns [104, 105, 10]
 def _parse_string(raw: str) -> list[int]:
     s = raw.strip()
     if s.startswith('"') and s.endswith('"'):
@@ -317,7 +324,13 @@ def _parse_string(raw: str) -> list[int]:
             i += 1
     return chars
 
-
+# Takes a list of bytes and packs every four of them into one little-endian (LSB at the lowest memory address) 32-bit word
+# which is how strings get stored in the data section
+#
+# _pack_bytes_to_words([104, 105, 10, 0])
+# packs little-endian: byte0 | byte1<<8 | byte2<<16 | byte3<<24
+# 104 | (105 << 8) | (10 << 16) | (0 << 24)
+# returns [673897576]
 def _pack_bytes_to_words(byte_vals: list[int]) -> list[int]:
     words = []
     for i in range(0, len(byte_vals), 4):
@@ -329,7 +342,21 @@ def _pack_bytes_to_words(byte_vals: list[int]) -> list[int]:
         )
     return words
 
-
+# Handles a single .data directive line and returns the list of 32-bit words it produces
+#
+# It dispatches on the directive type: .word parses comma-separated integers, 
+# while .asciz/.string call _parse_string, append a null terminator, pad to a 4-byte boundary, 
+# then call _pack_bytes_to_words. .ascii is the same but skips the null terminator.
+#
+# _data_words(".word 1, 2, 3")
+# returns [1, 2, 3]
+#
+# _data_words('.asciz "hi\n"')
+# calls _parse_string -> [104, 105, 10]
+# appends null terminator -> [104, 105, 10, 0]
+# already 4 bytes so no padding needed
+# calls _pack_bytes_to_words ->[673897576]
+# returns [673897576]
 def _data_words(line: str) -> list[int]:
     parts = line.split(None, 1)
     directive = parts[0].lower()
@@ -348,24 +375,37 @@ def _data_words(line: str) -> list[int]:
 
     return []
 
-
+#  _data_size(line) returns the byte size of what _data_words would emit 
+# used during the first pass to calculate data-label addresses.
 def _data_size(line: str) -> int:
     return len(_data_words(line)) * 4
 
-
+# First pass 
+# It splits lines into .text and .data buckets, then walks each bucket to build the _labels dictionary 
+# Text labels get addresses in units of 4 bytes (one per instruction word). 
+# Data labels get addresses starting right after the text section, 
+# accounting for the variable size of .word and string directives.
+# 
+# Second pass
+# It walks the text lines again, calls _assemble_pseudo 
+# on each non-label line (which itself calls _assemble_line for real instructions), and collects the resulting words. 
+# Then it walks the data lines and appends words from _data_words.
+# 
+# The final flat list of 32-bit integers is returned, ready to be written into the memory model.
 def assemble(source: str) -> list[int]:
     global _pc
     global _labels
     _pc = 0
-    _labels.clear()
+    _labels.clear() # choose .clear() because _labels = {} creates a new local variable
     words = []
 
     text_lines = []
     data_lines = []
     current = "text"
 
+    # Inserts instructions either in text_lines or data_lines
     for raw in source.strip().splitlines():
-        line = raw.split("#")[0].strip()
+        line = raw.split("#")[0].strip() # doesn't include comments in a line
         if not line:
             continue
         low = line.lower()
@@ -377,6 +417,7 @@ def assemble(source: str) -> list[int]:
             continue
         (text_lines if current == "text" else data_lines).append(line)
 
+    # Inserts text labels and their addresses
     text_pc = 0
     for line in text_lines:
         if ":" in line:
@@ -388,6 +429,7 @@ def assemble(source: str) -> list[int]:
         else:
             text_pc += _pseudo_size(line) * 4
 
+    # Inserts data labels and their addresses
     data_start = text_pc
     data_pc = data_start
     for line in data_lines:
@@ -400,9 +442,10 @@ def assemble(source: str) -> list[int]:
         else:
             data_pc += _data_size(line)
 
+    # Executes instructions 
     for line in text_lines:
-        if ":" in line:
-            _, _, rest = line.partition(":")
+        if ":" in line: 
+            _, _, rest = line.partition(":") # if there is an instruction after a label
             rest = rest.strip()
             if rest:
                 emitted = _assemble_pseudo(rest)
@@ -413,6 +456,8 @@ def assemble(source: str) -> list[int]:
             words.extend(emitted)
             _pc += len(emitted) * 4
 
+    # Encodes each data section line into 32-bit words, 
+    # stripping any label prefix before passing the directive to _data_words.
     for line in data_lines:
         if ":" in line:
             _, _, rest = line.partition(":")
