@@ -29,14 +29,14 @@ class Memory:
 
                 # Based on the input of mask, edit the contents of a memory slots.
                 # Used for storing words, halfwords, and bytes.
-            if mask[0] == "1":
-                current = (current & 0x00FFFFFF) | (value & 0xFF000000)
-            if mask[1] == "1":
-                current = (current & 0xFF00FFFF) | (value & 0x00FF0000)
-            if mask[2] == "1":
-                current = (current & 0xFFFF00FF) | (value & 0x0000FF00)
-            if mask[3] == "1":
-                current = (current & 0xFFFFFF00) | (value & 0x000000FF)
+                if mask[0] == "1":
+                    current = (current & 0x00FFFFFF) | (value & 0xFF000000)
+                if mask[1] == "1":
+                    current = (current & 0xFF00FFFF) | (value & 0x00FF0000)
+                if mask[2] == "1":
+                    current = (current & 0xFFFF00FF) | (value & 0x0000FF00)
+                if mask[3] == "1":
+                    current = (current & 0xFFFFFF00) | (value & 0x000000FF)
             else:
                 raise ValueError()
             
