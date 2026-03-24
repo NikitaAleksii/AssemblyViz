@@ -6,6 +6,7 @@ from riscv.registers import *
 
 
 class Simulation:
+    # Implements arithmetic logic unit (ALU)
     def _alu(self, mnemonic, a, b) -> int:
         if mnemonic == "add" or mnemonic == "addi":
             return a + b
@@ -38,6 +39,7 @@ class Simulation:
         self.PC = 0
         self.halted = False
 
+    # Loads and assembles assembly instructions
     def load(self, source: str):
         words = assemble(source)
         for i, word in enumerate(words):
@@ -46,6 +48,7 @@ class Simulation:
         self.halted = False
         self.registers.write(2, self.memory_depth)
 
+    # Executes one instruction at a time
     def step(self):
         if self.halted:
             return self.snapshot()
@@ -56,12 +59,14 @@ class Simulation:
 
         return self.snapshot()
 
+    # Resets memory, registers, and program counter
     def reset(self):
         self.memory = Memory(self.memory_depth, "")
         self.registers = Registers()
         self.PC = 0
         self.halted = False
 
+    # Executes an instruction
     def _execute(self, instruction):
         instr_mnemonic = (MNEMONICS.get((instruction.opcode, instruction.funct3, instruction.funct7)) or
                           MNEMONICS.get((instruction.opcode, instruction.funct3)) or
@@ -224,6 +229,7 @@ class Simulation:
             else:          # exit (10) or unknown — halt
                 self.halted = True
 
+    # Produces a snapshot with the program counter, registers, and memory values
     def snapshot(self):
         return {
             "PC": self.PC,
