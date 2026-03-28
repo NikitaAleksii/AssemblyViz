@@ -71,6 +71,8 @@ class Parser:
         self._parsed_lines: list[ParsedLine] = []
         self._symbol_table: dict[str, int] = {}
         self._errors: list[ParseError] = []
+        self._text_lines: list[str] = []
+        self._data_lines: list[str] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -81,10 +83,13 @@ class Parser:
         self._parsed_lines = []
         self._symbol_table = {}
         self._errors = []
-
+        self._text_lines = []
+        self._data_lines = []
+        
         lines = source.splitlines()
-        self._first_pass(lines)  # build symbol table
-        self._second_pass(lines)  # build parsed lines
+        self._split_lines(lines)
+        self._first_pass()  # build symbol table
+        self._second_pass()  # build parsed lines
 
         if self._errors:
             return None
@@ -103,12 +108,48 @@ class Parser:
     # ------------------------------------------------------------------
 
     # Collects all labels in the symbol table. If errors are found, add them to the error list.
-    def _first_pass(self, lines) -> None:
-        # Split lines into text and data buckets
-        text_lines = []
-        data_lines = []
-        current = "text"
+    def _first_pass(self) -> None:
+        # Scan text lines labels
+        text_pc = 0
+        for index, line in enumerate(self._text_lines):
+            tokens = self._tokenize_line(line)
+            if not tokens:
+                continue
+            if _LABEL_DEF.fullmatch(tokens[0]): # checks current label with regex
+                label_name = tokens[0][:-1] # removes colon
 
+                if self._register_label(label_name, text_pc, index+1, ' '.join(tokens)):
+                    if len(tokens) > 1: # check if there is an instruction right after label
+                        text_pc += self._pseudo_size(tokens[1:]) * 4
+            else:
+                text_pc += self._pseudo_size(tokens) * 4
+
+        # Scan data line labels right after the text section
+        data_pc = text_pc
+        for index, line in enumerate(self._data_lines):
+            tokens = self._tokenize_line(line)
+            if not tokens:
+                continue
+            if _LABEL_DEF.fullmatch(tokens[0]): # checks current label with regex
+                label_name = tokens[0][:-1] # removes colon
+
+                if self._register_label(label_name, data_pc, index+1, ' '.join(tokens)):
+                    if len(tokens) > 1: # check if there is data right after label
+                        data_pc += self._data_size(tokens[1:])
+            else:
+                data_pc += self._data_size(tokens)
+
+    def _second_pass(self) -> None:
+        pass
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+    
+    # Add instructions/data into separate sections
+    def _split_lines(self, lines : list[str]) -> None:
+        self._text_lines = []
+        self._data_lines = []
+        current = "text"
         for line in lines:
             tokens = self._tokenize_line(line)
             if not tokens:
@@ -120,43 +161,11 @@ class Parser:
                 current = "text"
                 continue
             if current == "text":
-                text_lines.append(line)
+                self._text_lines.append(line)
             else:
-                data_lines.append(line)
+                self._data_lines.append(line)
 
-        text_pc = 0
-        for index, line in enumerate(text_lines):
-            tokens = self._tokenize_line(line)
-            if not tokens:
-                continue
-            if _LABEL_DEF.fullmatch(tokens[0]):
-                label_name = tokens[0][:-1]
-
-                if self._register_label(label_name, text_pc, index+1, ' '.join(tokens)):
-                    if len(tokens) > 1:
-                        text_pc += self._pseudo_size(tokens[1:]) * 4
-            else:
-                text_pc += self._pseudo_size(tokens) * 4
-
-        # Scan data line right after the text section
-        data_pc = text_pc
-        for index, line in enumerate(data_lines):
-            tokens = self._tokenize_line(line)
-            if not tokens:
-                continue
-            if _LABEL_DEF.fullmatch(tokens[0]):
-                label_name = tokens[0][:-1]
-
-                if self._register_label(label_name, data_pc, index+1, ' '.join(tokens)):
-                    if len(tokens) > 1:
-                        data_pc += self._data_size(tokens[1:])
-            else:
-                data_pc += self._data_size(tokens)
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
+    # Checks whether label is reserved. If not, it store the label in the symbol table with the accompanying address
     def _register_label(self, label_name: str, address: int, line_number: int, line_text: str) -> bool:
         if label_name.lower() in RESERVED:
             self._add_error(line_number, line_text, f"'{label_name}' is a reserved word and cannot be used as a label")
