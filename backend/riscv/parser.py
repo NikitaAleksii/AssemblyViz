@@ -16,7 +16,7 @@ RESERVED = MNEMONICS_SET | set(REGISTER_NAMES) | DIRECTIVES
 
 _LABEL_DEF   = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*:$')
 _LABEL_REF   = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
-_REGISTER    = re.compile(r'^(x\d+|zero|ra|sp|gp|tp|t[0-6]|s\d+|a[0-7]|fp)$')
+_REGISTER = re.compile(r'^(x([0-9]|[12][0-9]|3[01])|zero|ra|sp|gp|tp|t[0-6]|s\d+|a[0-7]|fp)$')
 _IMMEDIATE   = re.compile(r'^-?0x[0-9a-fA-F]+$|^-?\d+$')
 _MEM_OPERAND = re.compile(r'^-?\d+\(\w+\)$')
 
@@ -145,16 +145,21 @@ class Parser:
     # Walks each text and data line, validates mnemonics and operands, 
     # and produces a ParsedLine object for each instruction or directive
     def _second_pass(self) -> None:
+        pending_label = None
+        
         for index, line in enumerate(self._text_lines):
             tokens = self._tokenize_line(line)
             if not tokens:
                 continue
-
-            label_name = None
+            
+            label_name = pending_label
+            pending_label = None
+            
             if _LABEL_DEF.fullmatch(tokens[0]):  # checks current label with regex
                 label_name = tokens[0][:-1]       # removes colon
                 tokens = tokens[1:]
                 if not tokens:
+                    pending_label = label_name
                     continue                       # label only line
 
             mnemonic = tokens[0].lower()
