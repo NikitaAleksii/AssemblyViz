@@ -1,14 +1,11 @@
 import re
 from dataclasses import dataclass
 from riscv.isa import (
-    MNEMONICS_SET, REGISTER_NAMES, DIRECTIVES, RESERVED,
+    MNEMONICS_SET, REGISTER_NAMES, DIRECTIVES,
     R_TYPE, I_TYPE, LOAD_TYPE, STORE_TYPE, BRANCH_TYPE,
     U_TYPE, JAL_TYPE, JALR_TYPE, NO_OPERAND,
     LA_TYPE, LI_TYPE, MV_TYPE, J_TYPE
 )
-
-# @dataclass is used to generate boilerplate methods for a class that's just meant to hold data
-# @property lets me access methods as if there were attributes -- this hides internal implementation
 
 # Reserved labels that cannot be used when user wants to create their own label
 RESERVED = MNEMONICS_SET | REGISTER_NAMES | DIRECTIVES
@@ -27,6 +24,7 @@ _ESCAPES = {"n": 10, "t": 9, "r": 13, "0": 0, "\\": 92, '"': 34, "'": 39}
 
 # ------------------------------------------------------------------
 # Data classes
+# @dataclass is used to generate boilerplate methods for a class that's just meant to hold data
 # ------------------------------------------------------------------
 
 # This class stores a parsed line, including line number, label (if any), mnemonic (if any), and operands
@@ -36,6 +34,7 @@ class ParsedLine:
     label: str | None
     mnemonic: str | None
     operands: list[str]
+    data_words: list[int] | None = None
 
 # This class stores an error, including line number, instruction, and a message
 @dataclass
@@ -78,6 +77,7 @@ class Parser:
             return None
         return self._parsed_lines
 
+    # @property lets me access methods as if there were attributes -- this hides internal implementation
     @property
     def symbol_table(self) -> dict[str, int]:
         return self._symbol_table
@@ -158,7 +158,7 @@ class Parser:
                     continue                       # label only line
 
             mnemonic = tokens[0].lower()
-            if mnemonic not in MNEMONICS:
+            if mnemonic not in MNEMONICS_SET:
                 self._add_error(index+1, ' '.join(tokens), f"Unknown mnemonic: '{mnemonic}'")
                 continue
 
@@ -197,7 +197,8 @@ class Parser:
                 line_number=index+1,
                 label=label,
                 mnemonic=directive,
-                operands=tokens[1:]
+                operands=tokens[1:],
+                data_words=self._data_words(tokens)
             ))
 
     # ------------------------------------------------------------------
