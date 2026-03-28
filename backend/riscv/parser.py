@@ -1,72 +1,17 @@
 import re
 from dataclasses import dataclass
+from riscv.isa import (
+    MNEMONICS_SET, REGISTER_NAMES, DIRECTIVES, RESERVED,
+    R_TYPE, I_TYPE, LOAD_TYPE, STORE_TYPE, BRANCH_TYPE,
+    U_TYPE, JAL_TYPE, JALR_TYPE, NO_OPERAND,
+    LA_TYPE, LI_TYPE, MV_TYPE, J_TYPE
+)
 
 # @dataclass is used to generate boilerplate methods for a class that's just meant to hold data
 # @property lets me access methods as if there were attributes -- this hides internal implementation
 
-# ------------------------------------------------------------------
-# Instruction sets
-# ------------------------------------------------------------------
-
-MNEMONICS = {
-    "add", "sub", "sll", "slt", "sltu", "xor", "srl", "sra", "or", "and",
-    "addi", "slti", "sltiu", "xori", "ori", "andi", "slli", "srli", "srai",
-    "lw", "lh", "lb", "lhu", "lbu",
-    "sw", "sh", "sb",
-    "beq", "bne", "blt", "bge", "bltu", "bgeu",
-    "lui", "auipc",
-    "jal", "jalr",
-    "ecall", "ebreak",
-    "li", "la", "mv", "j", "ret", "nop"   # pseudo-ops
-}
-
-# Instruction type sets for operand validation
-R_TYPE      = {"add", "sub", "sll", "slt", "sltu", "xor", "srl", "sra", "or", "and"}
-I_TYPE      = {"addi", "slti", "sltiu", "xori", "ori", "andi", "slli", "srli", "srai"}
-LOAD_TYPE   = {"lw", "lh", "lb", "lhu", "lbu"}
-STORE_TYPE  = {"sw", "sh", "sb"}
-BRANCH_TYPE = {"beq", "bne", "blt", "bge", "bltu", "bgeu"}
-U_TYPE      = {"lui", "auipc"}
-JAL_TYPE    = {"jal"}
-JALR_TYPE   = {"jalr"}
-NO_OPERAND  = {"ecall", "ebreak", "ret", "nop"}
-LA_TYPE     = {"la"}
-LI_TYPE     = {"li"}
-MV_TYPE     = {"mv"}
-J_TYPE      = {"j"}
-
-# ------------------------------------------------------------------
-# Reserved words
-# ------------------------------------------------------------------
-
-REGISTER_NAMES = {
-    # numeric names
-    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",
-    "x8",  "x9",  "x10", "x11", "x12", "x13", "x14", "x15",
-    "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
-    "x24", "x25", "x26", "x27", "x28", "x29", "x30", "x31",
-    # ABI names
-    "zero",                         # x0  - hardwired zero
-    "ra",                           # x1  - return address
-    "sp",                           # x2  - stack pointer
-    "gp",                           # x3  - global pointer
-    "tp",                           # x4  - thread pointer
-    "t0", "t1", "t2",               # x5-x7  - temporaries
-    "s0", "s1",                     # x8-x9  - saved registers
-    "a0", "a1", "a2", "a3",         # x10-x13 - function arguments
-    "a4", "a5", "a6", "a7",         # x14-x17 - function arguments
-    "s2", "s3", "s4",  "s5",        # x18-x21 - saved registers
-    "s6", "s7", "s8",  "s9",        # x22-x25 - saved registers
-    "s10", "s11",                   # x26-x27 - saved registers
-    "t3", "t4", "t5", "t6",         # x28-x31 - temporaries
-    # fp is an alias for s0
-    "fp",                           # x8  - frame pointer
-}
-
-DIRECTIVES = {".text", ".data", ".word", ".asciz", ".string", ".ascii"}
-
 # Reserved labels that cannot be used when user wants to create their own label
-RESERVED = MNEMONICS | REGISTER_NAMES | DIRECTIVES
+RESERVED = MNEMONICS_SET | REGISTER_NAMES | DIRECTIVES
 
 # ------------------------------------------------------------------
 # Regex patterns
