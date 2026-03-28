@@ -13,10 +13,12 @@ riscv/
 │   ├── assembler_test.py   # Unit tests for the assembler
 │   ├── decoder_test.py     # Unit tests for the decoder
 │   └── memory_test.py      # Unit tests for the memory
+│   ├── parser_test.py      # Unit tests for the parser
 │   └── simulation_test.py  # Tests for the simulation
 │   └── merge_sort.S        # Merge sort implemented in RISC-V and used for the simulation
 ├── __init__.py
 ├── isa.py                  # RV32I instruction set definitions (opcodes, formats, register names)
+├── parser.py               # Two-pass parser — validates 
 ├── assembler.py            # Assembles RV32I source text - list of 32-bit machine code words
 ├── decoder.py              # Decodes machine code words - structured instruction objects
 ├── memory.py               # Byte-addressable memory model
@@ -24,6 +26,24 @@ riscv/
 └── simulator.py            # Step-through execution engine
 ```
 
+---
+
+## Module Descriptions
+ 
+**isa.py** — Single source of truth for all ISA constants: opcodes, instruction type sets (`R_TYPE`, `I_TYPE`, etc.), register names, directives, and the mnemonic lookup table used by the decoder.
+ 
+**parser.py** — Two-pass parser that takes raw assembly source and produces a list of `ParsedLine` objects. First pass builds the symbol table; second pass validates mnemonics, operands, and label references using regex.
+ 
+**assembler.py** — Takes the `ParsedLine` list and symbol table from the parser and encodes each instruction into a 32-bit machine word. Handles pseudo-instruction expansion and PC-relative offset calculation.
+ 
+**decoder.py** — Takes a 32-bit machine word and splits it into its constituent fields (opcode, rd, rs1, rs2, funct3, funct7, immediate). Used by the simulator to execute each fetched instruction.
+ 
+**memory.py** — Word-addressable memory model. Supports partial writes via a 4-bit byte mask, enabling byte and halfword stores. All addresses must be word-aligned.
+ 
+**registers.py** — Models the 32 RISC-V general-purpose registers. x0 is hardwired to zero — writes are ignored and reads always return 0.
+ 
+**simulation.py** — Ties everything together. Loads and assembles source, then runs the fetch-decode-execute cycle one instruction at a time via `step()`.
+ 
 ---
 
 ## Requirements
@@ -92,10 +112,11 @@ python3 -m riscv.tests.simulation_test
 | Method | Description |
 |--------|-------------|
 | `Simulation(memory_depth=4096)` | Create a new simulation with `memory_depth` bytes of memory |
-| `sim.load(source)` | Assemble source, write to memory, reset PC, set `sp` to top of memory |
+| `sim.load(source)` | Parse and assemble source, write to memory, reset PC, set `sp` to top of memory |
 | `sim.step()` | Execute one instruction and return a snapshot |
 | `sim.reset()` | Clear memory and registers, reset PC |
 | `sim.snapshot()` | Return current state: `PC`, `halted`, `registers`, `memory` |
+| `sim.read_label(label, count=1)` | Read `count` words from the address of `label` — returns `list[int]` or `None` if label not found |
 
 ### Snapshot format
 

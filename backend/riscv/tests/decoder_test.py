@@ -1,6 +1,7 @@
 from riscv.decoder import DecodedInstruction
 from riscv.isa import *
 from riscv.assembler import *
+from riscv.parser import *
 
 
 def test(name, got, expected):
@@ -9,7 +10,11 @@ def test(name, got, expected):
 
 
 def decode_first(source):
-    return DecodedInstruction(assemble(source)[0])
+    parser = Parser()
+    parsed_lines = parser.parse(source)
+    assembler = Assembler()
+    words = assembler.assemble(parsed_lines, parser.symbol_table)
+    return DecodedInstruction(words[0])
 
 
 # --- OPreg: add x1, x2, x3 ---

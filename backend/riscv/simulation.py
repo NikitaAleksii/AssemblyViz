@@ -1,4 +1,5 @@
 from riscv.isa import *
+from riscv.parser import *
 from riscv.assembler import *
 from riscv.decoder import *
 from riscv.memory import *
@@ -6,42 +7,35 @@ from riscv.registers import *
 
 
 class Simulation:
-    # Implements arithmetic logic unit (ALU)
-    def _alu(self, mnemonic, a, b) -> int:
-        if mnemonic == "add" or mnemonic == "addi":
-            return a + b
-        if mnemonic == "sub":
-            return a - b
-        if mnemonic == "and" or mnemonic == "andi":
-            return a & b
-        if mnemonic == "or" or mnemonic == "ori":
-            return a | b
-        if mnemonic == "xor" or mnemonic == "xori":
-            return a ^ b
-        if mnemonic == "sll" or mnemonic == "slli":
-            return a << (b & 0b11111)  # logical left
-        if mnemonic == "srl" or mnemonic == "srli":
-            return (a & 0xFFFFFFFF) >> (b & 0b11111)   # logical right
-        if mnemonic == "sra" or mnemonic == "srai":
-            return to_signed(a, 32) >> (b & 0b11111)   # arithmetic right
-        if mnemonic == "slt" or mnemonic == "slti":
-            return 1 if a < b else 0  # less than
-        if mnemonic == "sltu" or mnemonic == "sltiu":
-            # less than unsigned
-            return 1 if (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF) else 0
-
-        return 0
 
     def __init__(self, memory_depth=256):
         self.memory_depth = memory_depth
         self.memory = Memory(self.memory_depth, "")
         self.registers = Registers()
+        self._symbol_table = {}
+        self._errors = []
         self.PC = 0
         self.halted = False
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     # Loads and assembles assembly instructions
     def load(self, source: str):
-        words = assemble(source)
+        self.reset()
+        parser = Parser()
+        parsed_lines = parser.parse(source)
+        self._errors = parser._errors
+        
+        if len(self._errors) > 0:
+            for error in self._errors:
+                print(f"{error.line_number} {error.line_text} {error.message}") 
+            return
+        
+        self._symbol_table = parser._symbol_table
+        assembler = Assembler()
+        words = assembler.assemble(parsed_lines, self._symbol_table)
         for i, word in enumerate(words):
             self.memory.memory_write(i * 4, word, "1111")
         self.PC = 0
@@ -52,6 +46,12 @@ class Simulation:
     def step(self):
         if self.halted:
             return self.snapshot()
+
+        if len(self._errors) > 0:
+            for error in self._errors:
+                print(f"{error.line_number} {error.line_text} {error.message}") 
+            self.halted = True
+            return
 
         word = self.memory.memory_read(self.PC)
         instruction = DecodedInstruction(word)
@@ -65,6 +65,30 @@ class Simulation:
         self.registers = Registers()
         self.PC = 0
         self.halted = False
+
+    def read_label(self, label: str, count: int = 1) -> list[int] | None:
+        if label not in self._symbol_table:
+            return None
+        addr = self._symbol_table[label]
+        return [self.memory.memory_read(addr + i * 4) for i in range(count)]
+
+    # Produces a snapshot with the program counter, registers, and memory values
+    def snapshot(self):
+        return {
+            "PC": self.PC,
+            "halted": self.halted,
+            "registers": [
+                {"index": i,
+                 "names": REGISTER_NAMES[i],
+                 "value": self.registers.read(i)}
+                for i in range(32)
+            ],
+            "memory": self.memory.memory
+        }
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
 
     # Executes an instruction
     def _execute(self, instruction):
@@ -229,16 +253,28 @@ class Simulation:
             else:          # exit (10) or unknown — halt
                 self.halted = True
 
-    # Produces a snapshot with the program counter, registers, and memory values
-    def snapshot(self):
-        return {
-            "PC": self.PC,
-            "halted": self.halted,
-            "registers": [
-                {"index": i,
-                 "names": REGISTER_NAMES[i],
-                 "value": self.registers.read(i)}
-                for i in range(32)
-            ],
-            "memory": self.memory.memory
-        }
+    # Implements arithmetic logic unit (ALU)
+    def _alu(self, mnemonic, a, b) -> int:
+        if mnemonic == "add" or mnemonic == "addi":
+            return a + b
+        if mnemonic == "sub":
+            return a - b
+        if mnemonic == "and" or mnemonic == "andi":
+            return a & b
+        if mnemonic == "or" or mnemonic == "ori":
+            return a | b
+        if mnemonic == "xor" or mnemonic == "xori":
+            return a ^ b
+        if mnemonic == "sll" or mnemonic == "slli":
+            return a << (b & 0b11111)  # logical left
+        if mnemonic == "srl" or mnemonic == "srli":
+            return (a & 0xFFFFFFFF) >> (b & 0b11111)   # logical right
+        if mnemonic == "sra" or mnemonic == "srai":
+            return to_signed(a, 32) >> (b & 0b11111)   # arithmetic right
+        if mnemonic == "slt" or mnemonic == "slti":
+            return 1 if a < b else 0  # less than
+        if mnemonic == "sltu" or mnemonic == "sltiu":
+            # less than unsigned
+            return 1 if (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF) else 0
+
+        return 0
