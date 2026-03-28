@@ -1,8 +1,12 @@
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # @dataclass is used to generate boilerplate methods for a class that's just meant to hold data
 # @property lets me access methods as if there were attributes -- this hides internal implementation
+
+# ------------------------------------------------------------------
+# Instruction sets
+# ------------------------------------------------------------------
 
 MNEMONICS = {
     "add", "sub", "sll", "slt", "sltu", "xor", "srl", "sra", "or", "and",
@@ -15,6 +19,25 @@ MNEMONICS = {
     "ecall", "ebreak",
     "li", "la", "mv", "j", "ret", "nop"   # pseudo-ops
 }
+
+# Instruction type sets for operand validation
+R_TYPE      = {"add", "sub", "sll", "slt", "sltu", "xor", "srl", "sra", "or", "and"}
+I_TYPE      = {"addi", "slti", "sltiu", "xori", "ori", "andi", "slli", "srli", "srai"}
+LOAD_TYPE   = {"lw", "lh", "lb", "lhu", "lbu"}
+STORE_TYPE  = {"sw", "sh", "sb"}
+BRANCH_TYPE = {"beq", "bne", "blt", "bge", "bltu", "bgeu"}
+U_TYPE      = {"lui", "auipc"}
+JAL_TYPE    = {"jal"}
+JALR_TYPE   = {"jalr"}
+NO_OPERAND  = {"ecall", "ebreak", "ret", "nop"}
+LA_TYPE     = {"la"}
+LI_TYPE     = {"li"}
+MV_TYPE     = {"mv"}
+J_TYPE      = {"j"}
+
+# ------------------------------------------------------------------
+# Reserved words
+# ------------------------------------------------------------------
 
 REGISTER_NAMES = {
     # numeric names
@@ -45,10 +68,21 @@ DIRECTIVES = {".text", ".data", ".word", ".asciz", ".string", ".ascii"}
 # Reserved labels that cannot be used when user wants to create their own label
 RESERVED = MNEMONICS | REGISTER_NAMES | DIRECTIVES
 
+# ------------------------------------------------------------------
 # Regex patterns
-_LABEL_DEF = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*:$')
+# ------------------------------------------------------------------
+
+_LABEL_DEF   = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*:$')
+_LABEL_REF   = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+_REGISTER    = re.compile(r'^(x\d+|zero|ra|sp|gp|tp|t[0-6]|s\d+|a[0-7]|fp)$')
+_IMMEDIATE   = re.compile(r'^-?0x[0-9a-fA-F]+$|^-?\d+$')
+_MEM_OPERAND = re.compile(r'^-?\d+\(\w+\)$')
 
 _ESCAPES = {"n": 10, "t": 9, "r": 13, "0": 0, "\\": 92, '"': 34, "'": 39}
+
+# ------------------------------------------------------------------
+# Data classes
+# ------------------------------------------------------------------
 
 # This class stores a parsed line, including line number, label (if any), mnemonic (if any), and operands
 @dataclass
@@ -65,6 +99,10 @@ class ParseError:
     line_text: str
     message: str
 
+
+# ------------------------------------------------------------------
+# Parser
+# ------------------------------------------------------------------
 
 class Parser:
     def __init__(self):
@@ -85,10 +123,10 @@ class Parser:
         self._errors = []
         self._text_lines = []
         self._data_lines = []
-        
+
         lines = source.splitlines()
         self._split_lines(lines)
-        self._first_pass()  # build symbol table
+        self._first_pass()   # build symbol table
         self._second_pass()  # build parsed lines
 
         if self._errors:
@@ -107,46 +145,8 @@ class Parser:
     # Passes
     # ------------------------------------------------------------------
 
-    # Collects all labels in the symbol table. If errors are found, add them to the error list.
-    def _first_pass(self) -> None:
-        # Scan text lines labels
-        text_pc = 0
-        for index, line in enumerate(self._text_lines):
-            tokens = self._tokenize_line(line)
-            if not tokens:
-                continue
-            if _LABEL_DEF.fullmatch(tokens[0]): # checks current label with regex
-                label_name = tokens[0][:-1] # removes colon
-
-                if self._register_label(label_name, text_pc, index+1, ' '.join(tokens)):
-                    if len(tokens) > 1: # check if there is an instruction right after label
-                        text_pc += self._pseudo_size(tokens[1:]) * 4
-            else:
-                text_pc += self._pseudo_size(tokens) * 4
-
-        # Scan data line labels right after the text section
-        data_pc = text_pc
-        for index, line in enumerate(self._data_lines):
-            tokens = self._tokenize_line(line)
-            if not tokens:
-                continue
-            if _LABEL_DEF.fullmatch(tokens[0]): # checks current label with regex
-                label_name = tokens[0][:-1] # removes colon
-
-                if self._register_label(label_name, data_pc, index+1, ' '.join(tokens)):
-                    if len(tokens) > 1: # check if there is data right after label
-                        data_pc += self._data_size(tokens[1:])
-            else:
-                data_pc += self._data_size(tokens)
-
-    def _second_pass(self) -> None:
-        pass
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-    
     # Add instructions/data into separate sections
-    def _split_lines(self, lines : list[str]) -> None:
+    def _split_lines(self, lines: list[str]) -> None:
         self._text_lines = []
         self._data_lines = []
         current = "text"
@@ -165,16 +165,99 @@ class Parser:
             else:
                 self._data_lines.append(line)
 
-    # Checks whether label is reserved. If not, it store the label in the symbol table with the accompanying address
-    def _register_label(self, label_name: str, address: int, line_number: int, line_text: str) -> bool:
-        if label_name.lower() in RESERVED:
-            self._add_error(line_number, line_text, f"'{label_name}' is a reserved word and cannot be used as a label")
-            return False
-        if label_name in self._symbol_table:
-            self._add_error(line_number, line_text, f"Duplicate label: '{label_name}'")
-            return False
-        self._symbol_table[label_name] = address
-        return True
+    # Collects all labels in the symbol table. If errors are found, add them to the error list.
+    def _first_pass(self) -> None:
+        # Scan text line labels
+        text_pc = 0
+        for index, line in enumerate(self._text_lines):
+            tokens = self._tokenize_line(line)
+            if not tokens:
+                continue
+            if _LABEL_DEF.fullmatch(tokens[0]):  # checks current label with regex
+                label_name = tokens[0][:-1]       # removes colon
+
+                if self._register_label(label_name, text_pc, index+1, ' '.join(tokens)):
+                    if len(tokens) > 1:           # check if there is an instruction right after label
+                        text_pc += self._pseudo_size(tokens[1:]) * 4
+            else:
+                text_pc += self._pseudo_size(tokens) * 4
+
+        # Scan data line labels right after the text section
+        data_pc = text_pc
+        for index, line in enumerate(self._data_lines):
+            tokens = self._tokenize_line(line)
+            if not tokens:
+                continue
+            if _LABEL_DEF.fullmatch(tokens[0]):  # checks current label with regex
+                label_name = tokens[0][:-1]       # removes colon
+
+                if self._register_label(label_name, data_pc, index+1, ' '.join(tokens)):
+                    if len(tokens) > 1:           # check if there is data right after label
+                        data_pc += self._data_size(tokens[1:])
+            else:
+                data_pc += self._data_size(tokens)
+
+    # Walks each text and data line, validates mnemonics and operands, 
+    # and produces a ParsedLine object for each instruction or directive
+    def _second_pass(self) -> None:
+        for index, line in enumerate(self._text_lines):
+            tokens = self._tokenize_line(line)
+            if not tokens:
+                continue
+
+            label_name = None
+            if _LABEL_DEF.fullmatch(tokens[0]):  # checks current label with regex
+                label_name = tokens[0][:-1]       # removes colon
+                tokens = tokens[1:]
+                if not tokens:
+                    continue                       # label only line
+
+            mnemonic = tokens[0].lower()
+            if mnemonic not in MNEMONICS:
+                self._add_error(index+1, ' '.join(tokens), f"Unknown mnemonic: '{mnemonic}'")
+                continue
+
+            operands = tokens[1:]
+
+            if not self._validate_operands(mnemonic, operands, index+1, ' '.join(tokens)):
+                continue
+
+            self._parsed_lines.append(ParsedLine(
+                line_number=index+1,
+                label=label_name,
+                mnemonic=mnemonic,
+                operands=operands
+            ))
+
+        for index, line in enumerate(self._data_lines):
+            tokens = self._tokenize_line(line)
+            if not tokens:
+                continue
+
+            # strip label if present
+            label = None
+            if _LABEL_DEF.fullmatch(tokens[0]):
+                label = tokens[0][:-1]
+                tokens = tokens[1:]
+                if not tokens:
+                    continue  # label-only line
+
+            directive = tokens[0].lower()
+
+            if directive not in DIRECTIVES - {".text", ".data"}:
+                self._add_error(index+1, ' '.join(tokens), f"Unknown directive: '{directive}'")
+                continue
+
+            self._parsed_lines.append(ParsedLine(
+                line_number=index+1,
+                label=label,
+                mnemonic=directive,
+                operands=tokens[1:]
+            ))
+
+    # ------------------------------------------------------------------
+    # Private helpers — general
+    # ------------------------------------------------------------------
 
     # Tokenizes a line
     def _tokenize_line(self, line: str) -> list[str]:
@@ -186,6 +269,84 @@ class Parser:
     # Adds an error of ParseError class
     def _add_error(self, line_number: int, line_text: str, message: str) -> None:
         self._errors.append(ParseError(line_number, line_text, message))
+
+    # Checks whether label is reserved. If not, it store the label in the symbol table with the accompanying address
+    def _register_label(self, label_name: str, address: int, line_number: int, line_text: str) -> bool:
+        if label_name.lower() in RESERVED:
+            self._add_error(line_number, line_text, f"'{label_name}' is a reserved word and cannot be used as a label")
+            return False
+        if label_name in self._symbol_table:
+            self._add_error(line_number, line_text, f"Duplicate label: '{label_name}'")
+            return False
+        self._symbol_table[label_name] = address
+        return True
+
+    # ------------------------------------------------------------------
+    # Private helpers — validation
+    # ------------------------------------------------------------------
+
+    # Validates an operand
+    def _validate_operand(self, token: str, expected: str, line_number: int, line_text: str) -> bool:
+        if expected == "reg":
+            if not _REGISTER.fullmatch(token.lower()):
+                self._add_error(line_number, line_text, f"Invalid register: '{token}'")
+                return False
+        elif expected == "imm":
+            if not _IMMEDIATE.fullmatch(token):
+                self._add_error(line_number, line_text, f"Invalid immediate: '{token}'")
+                return False
+        elif expected == "mem":
+            if not _MEM_OPERAND.fullmatch(token):
+                self._add_error(line_number, line_text, f"Invalid memory operand: '{token}'")
+                return False
+        elif expected == "label":
+            if not _LABEL_REF.fullmatch(token) and not _IMMEDIATE.fullmatch(token):
+                self._add_error(line_number, line_text, f"Invalid label or immediate: '{token}'")
+                return False
+            if _LABEL_REF.fullmatch(token) and token not in self._symbol_table:
+                self._add_error(line_number, line_text, f"Undefined label: '{token}'")
+                return False
+        return True
+
+    # Validates all operands and used in the second pass
+    def _validate_operands(self, mnemonic: str, operands: list[str], line_number: int, line_text: str) -> bool:
+        def check(expected_count, *types):
+            if len(operands) != expected_count:
+                self._add_error(line_number, line_text, f"'{mnemonic}' expects {expected_count} operands, got {len(operands)}")
+                return False
+            return all(self._validate_operand(operands[i], types[i], line_number, line_text) for i in range(expected_count))
+
+        if mnemonic in R_TYPE:
+            return check(3, "reg", "reg", "reg")
+        elif mnemonic in I_TYPE:
+            return check(3, "reg", "reg", "imm")
+        elif mnemonic in LOAD_TYPE:
+            return check(2, "reg", "mem")
+        elif mnemonic in STORE_TYPE:
+            return check(2, "reg", "mem")
+        elif mnemonic in BRANCH_TYPE:
+            return check(3, "reg", "reg", "label")
+        elif mnemonic in U_TYPE:
+            return check(2, "reg", "imm")
+        elif mnemonic in JAL_TYPE:
+            return check(2, "reg", "label")
+        elif mnemonic in JALR_TYPE:
+            return check(3, "reg", "reg", "imm")
+        elif mnemonic in NO_OPERAND:
+            return check(0)
+        elif mnemonic in LA_TYPE:
+            return check(2, "reg", "label")
+        elif mnemonic in LI_TYPE:
+            return check(2, "reg", "imm")
+        elif mnemonic in MV_TYPE:
+            return check(2, "reg", "reg")
+        elif mnemonic in J_TYPE:
+            return check(1, "label")
+        return True
+
+    # ------------------------------------------------------------------
+    # Private helpers — sizing and encoding
+    # ------------------------------------------------------------------
 
     # Predicts how many 32-bit words a line will emit without actually assembling it
     # This is needed during the label-scanning pass so that label addresses
