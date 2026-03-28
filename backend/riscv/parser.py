@@ -8,7 +8,7 @@ from riscv.isa import (
 )
 
 # Reserved labels that cannot be used when user wants to create their own label
-RESERVED = MNEMONICS_SET | REGISTER_NAMES | DIRECTIVES
+RESERVED = MNEMONICS_SET | set(REGISTER_NAMES) | DIRECTIVES
 
 # ------------------------------------------------------------------
 # Regex patterns

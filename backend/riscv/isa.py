@@ -101,20 +101,6 @@ MNEMONICS = {
     (InstructionOpcodes.SYSTEM, 0b000): "ecall/ebreak"
 }
 
-# ——————————————————— Application Binary Interface ———————————————————
-REGISTER_NAMES = [
-    "zero",                 # hardwired zero
-    "ra",                   # return address
-    "sp",                   # stack pointer
-    "gp",                   # global pointer
-    "tp",                   # thread pointer
-    "t0", "t1", "t2",       # temporaries
-    "s0", "s1",             # saved registers
-    "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7",  # function arguments
-    "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11",  # saved registers
-    "t3", "t4", "t5", "t6"  # temporaries
-]
-
 # ——————————————————— A set of existing operations for RISCV32I ———————————————————
 MNEMONICS_SET = {
     "add", "sub", "sll", "slt", "sltu", "xor", "srl", "sra", "or", "and",
@@ -144,7 +130,7 @@ MV_TYPE     = {"mv"}
 J_TYPE      = {"j"}
 
 # ——————————————————— Reserved words ———————————————————
-REGISTER_NAMES = {
+REGISTER_NAMES = [
     # numeric names
     "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",
     "x8",  "x9",  "x10", "x11", "x12", "x13", "x14", "x15",
@@ -166,6 +152,6 @@ REGISTER_NAMES = {
     "t3", "t4", "t5", "t6",         # x28-x31 - temporaries
     # fp is an alias for s0
     "fp",                           # x8  - frame pointer
-}
+]
 
 DIRECTIVES = {".text", ".data", ".word", ".asciz", ".string", ".ascii"}
