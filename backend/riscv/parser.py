@@ -95,7 +95,7 @@ class Parser:
         self._text_lines = []
         self._data_lines = []
         current = "text"
-        for line in lines:
+        for line_number, line in enumerate(lines, start=1):
             tokens = self._tokenize_line(line)
             if not tokens:
                 continue
@@ -106,22 +106,21 @@ class Parser:
                 current = "text"
                 continue
             if current == "text":
-                self._text_lines.append(line)
+                self._text_lines.append((line_number, line))
             else:
-                self._data_lines.append(line)
+                self._data_lines.append((line_number, line))
 
     # Collects all labels in the symbol table. If errors are found, add them to the error list.
     def _first_pass(self) -> None:
         # Scan text line labels
         text_pc = 0
-        for index, line in enumerate(self._text_lines):
+        for line_number, line in self._text_lines:
             tokens = self._tokenize_line(line)
             if not tokens:
                 continue
             if _LABEL_DEF.fullmatch(tokens[0]):  # checks current label with regex
                 label_name = tokens[0][:-1]       # removes colon
-
-                if self._register_label(label_name, text_pc, index+1, ' '.join(tokens)):
+                if self._register_label(label_name, text_pc, line_number, ' '.join(tokens)):
                     if len(tokens) > 1:           # check if there is an instruction right after label
                         text_pc += self._pseudo_size(tokens[1:]) * 4
             else:
@@ -129,14 +128,13 @@ class Parser:
 
         # Scan data line labels right after the text section
         data_pc = text_pc
-        for index, line in enumerate(self._data_lines):
+        for line_number, line in self._data_lines:
             tokens = self._tokenize_line(line)
             if not tokens:
                 continue
             if _LABEL_DEF.fullmatch(tokens[0]):  # checks current label with regex
                 label_name = tokens[0][:-1]       # removes colon
-
-                if self._register_label(label_name, data_pc, index+1, ' '.join(tokens)):
+                if self._register_label(label_name, data_pc, line_number, ' '.join(tokens)):
                     if len(tokens) > 1:           # check if there is data right after label
                         data_pc += self._data_size(tokens[1:])
             else:
@@ -146,15 +144,15 @@ class Parser:
     # and produces a ParsedLine object for each instruction or directive
     def _second_pass(self) -> None:
         pending_label = None
-        
-        for index, line in enumerate(self._text_lines):
+
+        for line_number, line in self._text_lines:
             tokens = self._tokenize_line(line)
             if not tokens:
                 continue
-            
+
             label_name = pending_label
             pending_label = None
-            
+
             if _LABEL_DEF.fullmatch(tokens[0]):  # checks current label with regex
                 label_name = tokens[0][:-1]       # removes colon
                 tokens = tokens[1:]
@@ -164,22 +162,22 @@ class Parser:
 
             mnemonic = tokens[0].lower()
             if mnemonic not in MNEMONICS_SET:
-                self._add_error(index+1, ' '.join(tokens), f"Unknown mnemonic: '{mnemonic}'")
+                self._add_error(line_number, ' '.join(tokens), f"Unknown mnemonic: '{mnemonic}'")
                 continue
 
             operands = tokens[1:]
 
-            if not self._validate_operands(mnemonic, operands, index+1, ' '.join(tokens)):
+            if not self._validate_operands(mnemonic, operands, line_number, ' '.join(tokens)):
                 continue
 
             self._parsed_lines.append(ParsedLine(
-                line_number=index+1,
+                line_number=line_number,
                 label=label_name,
                 mnemonic=mnemonic,
                 operands=operands
             ))
 
-        for index, line in enumerate(self._data_lines):
+        for line_number, line in self._data_lines:
             tokens = self._tokenize_line(line)
             if not tokens:
                 continue
@@ -195,11 +193,11 @@ class Parser:
             directive = tokens[0].lower()
 
             if directive not in DIRECTIVES - {".text", ".data"}:
-                self._add_error(index+1, ' '.join(tokens), f"Unknown directive: '{directive}'")
+                self._add_error(line_number, ' '.join(tokens), f"Unknown directive: '{directive}'")
                 continue
 
             self._parsed_lines.append(ParsedLine(
-                line_number=index+1,
+                line_number=line_number,
                 label=label,
                 mnemonic=directive,
                 operands=tokens[1:],

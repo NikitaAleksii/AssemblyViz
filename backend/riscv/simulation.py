@@ -13,6 +13,7 @@ class Simulation:
         self.memory = Memory(self.memory_depth, "")
         self.registers = Registers()
         self._symbol_table = {}
+        self._errors = []
         self.PC = 0
         self.halted = False
 
@@ -25,6 +26,13 @@ class Simulation:
         self.reset()
         parser = Parser()
         parsed_lines = parser.parse(source)
+        self._errors = parser._errors
+        
+        if len(self._errors) > 0:
+            for error in self._errors:
+                print(f"{error.line_number} {error.line_text} {error.message}") 
+            return
+        
         self._symbol_table = parser._symbol_table
         assembler = Assembler()
         words = assembler.assemble(parsed_lines, self._symbol_table)
@@ -38,6 +46,12 @@ class Simulation:
     def step(self):
         if self.halted:
             return self.snapshot()
+
+        if len(self._errors) > 0:
+            for error in self._errors:
+                print(f"{error.line_number} {error.line_text} {error.message}") 
+            self.halted = True
+            return
 
         word = self.memory.memory_read(self.PC)
         instruction = DecodedInstruction(word)
