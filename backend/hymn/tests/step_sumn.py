@@ -12,7 +12,7 @@ import os
 import sys
 
 _BACKEND = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
-sys.path.insert(0, os.path.normpath(_BACKEND))
+sys.path.insert(0, os.path.normpath(_BACKEND)) #take out after live demo
 
 from hymn.parser import Parser
 from hymn.machine import MachineState
