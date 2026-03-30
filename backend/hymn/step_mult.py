@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Step-by-step runner for the sumn HYMN assembly program.
+"""Step-by-step runner for the mult HYMN assembly program.
 
-Assembles sumn.s, then executes one instruction at a time, pausing for
+Assembles mult.s, then executes one instruction at a time, pausing for
 Enter between each step so you can follow the registers and variables live.
 
 Usage (from the repo root):
-    python3 backend/hymn/tests/step_sumn.py
+    python3 backend/hymn/tests/step_mult.py
 """
 
 import os
@@ -21,7 +21,7 @@ MNEMONICS = ["HALT", "JUMP", "JZER", "JPOS", "LOAD", "STOR", "ADD", "SUB"]
 
 
 def main() -> None:
-    sumn_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sumn.s')
+    sumn_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mult.s')
 
     with open(sumn_path) as f:
         source = f.read()
@@ -51,7 +51,7 @@ def main() -> None:
     watch_keys = [k for k in ('TOTAL', 'COUNT') if k in sym]
 
     print("*" * 60)
-    print("sumn — step-by-step execution")
+    print("mult — step-by-step execution")
     print("*" * 60)
     print()
 
