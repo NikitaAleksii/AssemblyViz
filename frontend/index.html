@@ -1,127 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AssemblyViz</title>
-    <link rel="stylesheet" href="./styles.css">
-</head>
-
-<body>
-    <header class="topbar">
-        <div class="logo">AssemblyViz</div>
-
-        <div class="top-tabs">
-            <button class="tab active" id="editorTab" type="button">Editor</button>
-            <button class="tab" id="memoryTab" type="button">Memory</button>
-        </div>
-
-        <div class="top-controls">
-            <button class="icon-btn" id="backBtn" type="button" title="Back">⏮</button>
-            <button class="icon-btn" id="playBtn" type="button" title="Run">▶</button>
-            <button class="icon-btn" id="stepBtn" type="button" title="Step">⏭</button>
-            <button class="icon-btn" id="resetBtn" type="button" title="Reset">↻</button>
-        </div>
-
-        <div class="speed-control">
-            <input type="range" id="speedSlider" min="50" max="1000" step="50" value="200">
-            <span id="speedValue">200 ms</span>
-        </div>
-
-        <div class="mode-switch">
-            <button class="mode active" id="hymnMode" type="button">HYMN</button>
-            <button class="mode" id="riscvMode" type="button">RISC-V</button>
-        </div>
-    </header>
-
-    <main class="main-layout">
-        <section class="left-panel">
-            <div class="panel-header">
-                <h2>CODE EDITOR</h2>
-                <div class="editor-actions">
-                    <button id="importBtn" type="button">IMPORT</button>
-                    <button id="exportBtn" type="button">EXPORT</button>
-                    <button class="primary" id="assembleBtn" type="button">ASSEMBLE</button>
-                </div>
-            </div>
-
-            <div class="editor-box">
-                <div class="line-numbers">
-                    <span>1</span>
-                    <span>2</span>
-                    <span>3</span>
-                    <span>4</span>
-                    <span>5</span>
-                    <span>6</span>
-                </div>
-
-                <textarea id="codeInput" placeholder="Write HYMN code here..."></textarea>
-            </div>
-
-            <div class="output-section">
-                <h3>OUTPUT</h3>
-                <div class="output-box" id="outputBox">No output yet...</div>
-            </div>
-        </section>
-
-        <section class="center-panel">
-            <div class="panel-header">
-                <h2>RESULTS</h2>
-                <button id="exportCodeBtn" type="button">EXPORT CODE</button>
-            </div>
-
-            <div class="results-box">
-                <div class="results-header">
-                    <span>ADDRESS</span>
-                    <span>CODE</span>
-                    <span>INSTRUCTION</span>
-                </div>
-
-                <div class="results-body" id="resultsBody"></div>
-            </div>
-        </section>
-
-        <section class="right-panel">
-            <div class="panel-header">
-                <h2>REGISTER</h2>
-                <select id="registerFormat">
-                    <option>HEXADECIMAL</option>
-                    <option>DECIMAL</option>
-                    <option>BINARY</option>
-                </select>
-            </div>
-
-            <div class="register-box">
-                <div class="register-header">
-                    <span>NAME</span>
-                    <span>NUMBER</span>
-                    <span>VALUE</span>
-                </div>
-
-                <div class="register-body" id="registerBody">
-                    <div class="register-row">
-                        <span>PC</span>
-                        <span>0</span>
-                        <span>0x01</span>
-                    </div>
-
-                    <div class="register-row">
-                        <span>IR</span>
-                        <span>1</span>
-                        <span>HALT</span>
-                    </div>
-
-                    <div class="register-row">
-                        <span>AC</span>
-                        <span>2</span>
-                        <span>0x08</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <script src="script.js"></script>
-</body>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
