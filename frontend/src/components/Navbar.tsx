@@ -1,5 +1,6 @@
 import React from 'react'
 import { ISAMode } from '../types'
+import logo from '../assets/logo.svg'
 
 interface NavbarProps {
   activeTab: 'editor' | 'memory'
@@ -23,29 +24,28 @@ const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="topbar">
 
-      {/* Logo — styled "A" + "ssemblyViz" */}
+      {/* Real logo from Figma */}
       <div className="logo">
-        <span className="logo-a">A</span>
-        <span className="logo-rest">ssemblyViz</span>
+        <img src={logo} alt="AssemblyViz" height="28" />
       </div>
 
-      {/* View tabs with icons */}
+      {/* View tabs — gray pill background */}
       <div className="top-tabs">
         <button
           className={`tab ${activeTab === 'editor' ? 'active' : ''}`}
           onClick={() => onTabChange('editor')}
         >
-          <span className="tab-icon">&lt;/&gt;</span> Editor
+          &lt;/&gt; Editor
         </button>
         <button
           className={`tab ${activeTab === 'memory' ? 'active' : ''}`}
           onClick={() => onTabChange('memory')}
         >
-          <span className="tab-icon">☰</span> Memory
+          ☰ Memory
         </button>
       </div>
 
-      {/* Playback controls — outline triangle style */}
+      {/* Playback controls */}
       <div className="top-controls">
         <button className="ctrl-btn" onClick={onBack}  title="Step Back">&#9665;</button>
         <button className="ctrl-btn" onClick={onPlay}  title="Play">&#9655;</button>
@@ -66,18 +66,8 @@ const Navbar: React.FC<NavbarProps> = ({
 
       {/* ISA toggle */}
       <div className="mode-switch">
-        <button
-          className={`mode ${isaMode === 'HYMN' ? 'active' : ''}`}
-          onClick={() => onISAChange('HYMN')}
-        >
-          HYMN
-        </button>
-        <button
-          className={`mode ${isaMode === 'RISC-V' ? 'active' : ''}`}
-          onClick={() => onISAChange('RISC-V')}
-        >
-          RISC-V
-        </button>
+        <button className={`mode ${isaMode === 'HYMN' ? 'active' : ''}`} onClick={() => onISAChange('HYMN')}>HYMN</button>
+        <button className={`mode ${isaMode === 'RISC-V' ? 'active' : ''}`} onClick={() => onISAChange('RISC-V')}>RISC-V</button>
       </div>
     </header>
   )
