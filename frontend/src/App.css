@@ -166,7 +166,12 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 }
 .output-box {
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
-  color: #999; line-height: 1.5; min-height: 36px;
+  color: #333; line-height: 1.5; min-height: 36px;
+}
+.output-placeholder { color: #999; }
+.status-line {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  margin-top: 5px; color: #888;
 }
 
 /* ── Memory panel ───────────────────────────────────────────── */
@@ -183,7 +188,13 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   padding: 6px 14px; border-bottom: 1px solid #f2f2f2;
   font-family: 'JetBrains Mono', monospace; font-size: 12px;
 }
-.memory-row.active-row { background: #f0fff8; border-left: 3px solid #2ecc71; }
+.memory-row.active-row  { background: #f0fff8; border-left: 3px solid #2ecc71; }
+@keyframes memory-flash {
+  0%   { background: #fff9c4; }
+  25%  { background: #ffe082; }
+  100% { background: transparent; }
+}
+.memory-row.changed-row { animation: memory-flash 1.4s ease-out; }
 .memory-address { color: #555; }
 .memory-instruction { color: #333; }
 

@@ -7,6 +7,17 @@ interface MemoryPanelProps {
   onFormatChange: (fmt: DisplayFormat) => void
 }
 
+function formatSlot(slot: MemorySlot, fmt: DisplayFormat): string {
+  if (fmt === 'INSTRUCTION' || slot.value === undefined) return slot.instruction
+  const isRISCV = slot.address.startsWith('0x')
+  if (fmt === 'HEXADECIMAL') {
+    const hex = (slot.value >>> 0).toString(16).toUpperCase()
+    return isRISCV ? `0x${hex.padStart(8, '0')}` : `0x${hex.padStart(2, '0')}`
+  }
+  // DECIMAL
+  return slot.value.toString()
+}
+
 const MemoryPanel: React.FC<MemoryPanelProps> = ({ slots, displayFormat, onFormatChange }) => {
   return (
     <section className="left-panel">
@@ -26,16 +37,16 @@ const MemoryPanel: React.FC<MemoryPanelProps> = ({ slots, displayFormat, onForma
       <div className="memory-table-wrap">
         <div className="memory-header">
           <span>ADDRESS</span>
-          <span>INSTRUCTION</span>
+          <span>{displayFormat === 'INSTRUCTION' ? 'INSTRUCTION' : 'VALUE'}</span>
         </div>
         <div className="memory-body">
           {slots.map((slot, idx) => (
             <div
               key={idx}
-              className={`memory-row ${slot.isActive ? 'active-row' : ''}`}
+              className={`memory-row ${slot.isActive ? 'active-row' : ''} ${slot.isChanged ? 'changed-row' : ''}`}
             >
               <span className="memory-address">{slot.address}</span>
-              <span className="memory-instruction">{slot.instruction}</span>
+              <span className="memory-instruction">{formatSlot(slot, displayFormat)}</span>
             </div>
           ))}
         </div>

@@ -2,11 +2,9 @@
 
 Python backend for a RISC-V assembly visualizer. Handles assembling RV32I source code into 32-bit machine code words, which are then consumed by the frontend for visualization.
 
-> **Status:** In progress — assembler, ISA definitions, decoder, memory, and registers are implemented. Simulator is planned.
-
 ---
 
-## Project Structure
+## RISC-V Implementation Structure
 
 ```
 riscv/
@@ -15,14 +13,43 @@ riscv/
 │   ├── assembler_test.py   # Unit tests for the assembler
 │   ├── decoder_test.py     # Unit tests for the decoder
 │   └── memory_test.py      # Unit tests for the memory
+│   ├── parser_test.py      # Unit tests for the parser
+│   └── simulation_test.py  # Tests for the simulation
+│   └── merge_sort.S        # Merge sort implemented in RISC-V and used for the simulation
 ├── __init__.py
 ├── isa.py                  # RV32I instruction set definitions (opcodes, formats, register names)
+├── parser.py               # Two-pass parser — validates 
 ├── assembler.py            # Assembles RV32I source text - list of 32-bit machine code words
 ├── decoder.py              # Decodes machine code words - structured instruction objects
 ├── memory.py               # Byte-addressable memory model
 ├── registers.py            # x0–x31 register file
-└── simulator.py            # (planned) Step-through execution engine
+└── simulator.py            # Step-through execution engine
 ```
+
+---
+
+## Module Descriptions
+ 
+**isa.py** — Single source of truth for all ISA constants: opcodes, instruction type sets (`R_TYPE`, `I_TYPE`, etc.), register names, directives, and the mnemonic lookup table used by the decoder.
+ 
+**parser.py** — Two-pass parser that takes raw assembly source and produces a list of `ParsedLine` objects. First pass builds the symbol table; second pass validates mnemonics, operands, and label references using regex.
+ 
+**assembler.py** — Takes the `ParsedLine` list and symbol table from the parser and encodes each instruction into a 32-bit machine word. Handles pseudo-instruction expansion and PC-relative offset calculation.
+ 
+**decoder.py** — Takes a 32-bit machine word and splits it into its constituent fields (opcode, rd, rs1, rs2, funct3, funct7, immediate). Used by the simulator to execute each fetched instruction.
+ 
+**memory.py** — Word-addressable memory model. Supports partial writes via a 4-bit byte mask, enabling byte and halfword stores. All addresses must be word-aligned.
+ 
+**registers.py** — Models the 32 RISC-V general-purpose registers. x0 is hardwired to zero — writes are ignored and reads always return 0.
+ 
+**simulation.py** — Ties everything together. Loads and assembles source, then runs the fetch-decode-execute cycle one instruction at a time via `step()`.
+ 
+---
+
+## Requirements
+
+- Python 3.10 or higher
+- No external dependencies — uses the standard library only
 
 ---
 
@@ -43,74 +70,82 @@ The assembler currently supports the full **RV32I base integer instruction set**
 
 ---
 
-## Requirements
+### Pseudo-instructions
 
-- Python 3.10 or higher
-- No external dependencies — uses the standard library only
+| Pseudo | Expands to |
+|--------|-----------|
+| `li rd, imm` | `addi rd, x0, imm` (small) or `lui` + `addi` (large) |
+| `la rd, symbol` | `lui rd, %hi(addr)` + `addi rd, rd, %lo(addr)` |
+| `mv rd, rs` | `addi rd, rs, 0` |
+| `j label` | `jal x0, offset` |
+| `ret` | `jalr x0, ra, 0` |
+| `nop` | `addi x0, x0, 0` |
 
 ---
 
-## Running the Assembler
+## Syscall Convention (MARS/RISC-V)
 
-You can use the assembler directly in a Python script:
+Set `a7` to the syscall number before `ecall`:
+
+| a7 | Operation |
+|----|-----------|
+| 1  | Print integer in `a0` — simulation continues |
+| 4  | Print string at address in `a0` — simulation continues |
+| 10 | Exit — simulation halts |
+
+Any other syscall number also halts the simulation.
+
+---
+
+## Running the Simulator
+
+Run the command from ./backend folder
+``` 
+cd backend/
+```
+```
+python3 -m riscv.tests.simulation_test
+```
+
+### Simulation API
+
+| Method | Description |
+|--------|-------------|
+| `Simulation(memory_depth=4096)` | Create a new simulation with `memory_depth` bytes of memory |
+| `sim.load(source)` | Parse and assemble source, write to memory, reset PC, set `sp` to top of memory |
+| `sim.step()` | Execute one instruction and return a snapshot |
+| `sim.reset()` | Clear memory and registers, reset PC |
+| `sim.snapshot()` | Return current state: `PC`, `halted`, `registers`, `memory` |
+| `sim.read_label(label, count=1)` | Read `count` words from the address of `label` — returns `list[int]` or `None` if label not found |
+
+### Snapshot format
 
 ```python
-from riscv.assembler import assemble
-
-source = """
-    addi x1, x0, 5     # x1 = 5
-    addi x2, x0, 10    # x2 = 10
-    add  x3, x1, x2    # x3 = x1 + x2
-"""
-
-words = assemble(source)
-
-for word in words:
-    print(f"{word:032b}")   # print as 32-bit binary
-    print(f"{word:#010x}")  # print as hex
-```
-
-Or run it standalone from the project root:
-
-```bash
-cd ~/Desktop/AssemblyViz
-python3 -m riscv.assembler
-```
-
-### Assembly Syntax
-
-```asm
-# Registers: x0–x31 or ABI names (zero, ra, sp, a0 … t6)
-add  x1, x2, x3          # rd, rs1, rs2
-addi x1, x2, 10          # rd, rs1, immediate (decimal)
-addi x1, x2, 0xFF        # rd, rs1, immediate (hex also works)
-lw   x1, 8(x2)           # rd, offset(rs1)
-sw   x2, 8(x1)           # rs2, offset(rs1)
-beq  x1, x2, 4           # rs1, rs2, offset
-
-# Comments use #
-# Blank lines are ignored
+{
+    "PC": 24,
+    "halted": False,
+    "registers": [
+        {"index": 0, "names": "zero", "value": 0},
+        {"index": 1, "names": "ra",   "value": 0},
+        # ... x0–x31
+    ],
+    "memory": ["00000000...", ...]  # list of 32-bit binary strings
+}
 ```
 
 ---
 
-## Running the Tests
+## Memory Layout
 
-From the **project root** (`AssemblyViz/`), run:
-
-```bash
-python3 -m riscv.tests.assembler_test
-```
-
-You should see output like:
+When a program with a `.data` section is loaded, the simulator lays it out as:
 
 ```
-test_add (__main__.TestRType.test_add) ... ok
-test_sub (__main__.TestRType.test_sub) ... ok
-test_and (__main__.TestRType.test_and) ... ok
-...
-----------------------------------------------------------------------
-Ran 42 tests in 0.003s
-
-OK
+Address 0x0000  ┌─────────────────┐
+                │   .text         │  instructions
+                ├─────────────────┤
+                │   .data         │  .word / .asciz values
+                └─────────────────┘
+Address depth   stack grows down ↓
 ```
+
+The stack pointer (`sp`) is initialised to `memory_depth` on every `load()` call, so it starts at the top of memory and grows downward as functions push frames.

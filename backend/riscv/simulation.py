@@ -1,4 +1,5 @@
 from riscv.isa import *
+from riscv.parser import *
 from riscv.assembler import *
 from riscv.decoder import *
 from riscv.memory import *
@@ -6,61 +7,93 @@ from riscv.registers import *
 
 
 class Simulation:
-    def _alu(self, mnemonic, a, b) -> int:
-        if mnemonic == "add" or mnemonic == "addi":
-            return a + b
-        if mnemonic == "sub":
-            return a - b
-        if mnemonic == "and" or mnemonic == "andi":
-            return a & b
-        if mnemonic == "or" or mnemonic == "ori":
-            return a | b
-        if mnemonic == "xor" or mnemonic == "xori":
-            return a ^ b
-        if mnemonic == "sll" or mnemonic == "slli":
-            return a << (b & 0b11111)  # logical left
-        if mnemonic == "srl" or mnemonic == "srli":
-            return (a & 0xFFFFFFFF) >> (b & 0b11111)   # logical right
-        if mnemonic == "sra" or mnemonic == "srai":
-            return to_signed(a, 32) >> (b & 0b11111)   # arithmetic right
-        if mnemonic == "slt" or mnemonic == "slti":
-            return 1 if a < b else 0  # less than
-        if mnemonic == "sltu" or mnemonic == "sltiu":
-            # less than unsigned
-            return 1 if (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF) else 0
-        
-        return 0
 
-    def __init__(self, memory_depth=256):
+    def __init__(self, memory_depth=25600):
         self.memory_depth = memory_depth
         self.memory = Memory(self.memory_depth, "")
         self.registers = Registers()
+        self._symbol_table = {}
+        self._errors = []
         self.PC = 0
         self.halted = False
+        self._io_output: list[str] = []
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    # Loads and assembles assembly instructions
     def load(self, source: str):
-        words = assemble(source)
+        self.reset()
+        parser = Parser()
+        parsed_lines = parser.parse(source)
+        self._errors = parser._errors
+        
+        if len(self._errors) > 0:
+            for error in self._errors:
+                print(f"{error.line_number} {error.line_text} {error.message}") 
+            return
+        
+        self._symbol_table = parser._symbol_table
+        assembler = Assembler()
+        words = assembler.assemble(parsed_lines, self._symbol_table)
         for i, word in enumerate(words):
             self.memory.memory_write(i * 4, word, "1111")
         self.PC = 0
         self.halted = False
+        self.registers.write(2, self.memory_depth)
 
+    # Executes one instruction at a time
     def step(self):
         if self.halted:
             return self.snapshot()
 
-        word = int(self.memory.memory_read(self.PC), 2)
+        if len(self._errors) > 0:
+            for error in self._errors:
+                print(f"{error.line_number} {error.line_text} {error.message}") 
+            self.halted = True
+            return
+
+        word = self.memory.memory_read(self.PC)
         instruction = DecodedInstruction(word)
         self._execute(instruction)
 
         return self.snapshot()
 
+    # Resets memory, registers, and program counter
     def reset(self):
         self.memory = Memory(self.memory_depth, "")
         self.registers = Registers()
         self.PC = 0
         self.halted = False
+        self._io_output = []
 
+    def read_label(self, label: str, count: int = 1) -> list[int] | None:
+        if label not in self._symbol_table:
+            return None
+        addr = self._symbol_table[label]
+        return [self.memory.memory_read(addr + i * 4) for i in range(count)]
+
+    # Produces a snapshot with the program counter, registers, and memory values
+    def snapshot(self):
+        return {
+            "PC": self.PC,
+            "halted": self.halted,
+            "registers": [
+                {"index": i,
+                 "names": REGISTER_NAMES[i + 32],
+                 "value": self.registers.read(i)}
+                for i in range(32)
+            ],
+            "memory":    self.memory.memory,
+            "io_output": list(self._io_output),
+        }
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    # Executes an instruction
     def _execute(self, instruction):
         instr_mnemonic = (MNEMONICS.get((instruction.opcode, instruction.funct3, instruction.funct7)) or
                           MNEMONICS.get((instruction.opcode, instruction.funct3)) or
@@ -92,10 +125,10 @@ class Simulation:
             self.PC += 4
 
         # Handle Load
-        elif instruction.isLoad:    
+        elif instruction.isLoad:
             load_addr = rs1 + Iimm
             word_addr = load_addr & ~0b11
-            read_val = int(self.memory.memory_read(word_addr), 2)
+            read_val = self.memory.memory_read(word_addr)
 
             if instr_mnemonic == "lw":
                 result = read_val
@@ -127,14 +160,14 @@ class Simulation:
                     byte, 8) if instr_mnemonic == "lb" else byte
             else:
                 result = 0
-                
+
             self.registers.write(
                 instruction.rd, result
             )
             self.PC += 4
 
         # Handle Store
-        elif instruction.isStore:  
+        elif instruction.isStore:
             write_addr = rs1 + Simm
             word_write = write_addr & ~0b11
 
@@ -215,17 +248,55 @@ class Simulation:
 
         # Handle System calls
         elif instruction.isSystem:
-            self.halted = True
+            a0 = self.registers.read(10)
+            a7 = self.registers.read(17)  # syscall number
+            if a7 == 1:    # print integer
+                self._io_output.append(str(a0))
+                self.PC += 4
+            elif a7 == 4:  # print null-terminated string at address a0
+                self._io_output.append(self._read_cstring(a0))
+                self.PC += 4
+            else:          # exit (10) or unknown — halt
+                self.halted = True
 
-    def snapshot(self):
-        return {
-            "PC": self.PC,
-            "halted": self.halted,
-            "registers": [
-                {"index": i,
-                 "names": REGISTER_NAMES[i],
-                 "value": self.registers.read(i)}
-                for i in range(32)
-            ],
-            "memory": self.memory.memory
-        }
+    def _read_cstring(self, addr: int) -> str:
+        """Read a null-terminated byte string from memory (little-endian)."""
+        chars = []
+        while True:
+            word_addr = addr & ~0b11
+            byte_pos  = addr & 0b11
+            word = self.memory.memory_read(word_addr)
+            if word is None:
+                break
+            byte = (word >> (byte_pos * 8)) & 0xFF
+            if byte == 0:
+                break
+            chars.append(chr(byte))
+            addr += 1
+        return ''.join(chars)
+
+    # Implements arithmetic logic unit (ALU)
+    def _alu(self, mnemonic, a, b) -> int:
+        if mnemonic == "add" or mnemonic == "addi":
+            return a + b
+        if mnemonic == "sub":
+            return a - b
+        if mnemonic == "and" or mnemonic == "andi":
+            return a & b
+        if mnemonic == "or" or mnemonic == "ori":
+            return a | b
+        if mnemonic == "xor" or mnemonic == "xori":
+            return a ^ b
+        if mnemonic == "sll" or mnemonic == "slli":
+            return a << (b & 0b11111)  # logical left
+        if mnemonic == "srl" or mnemonic == "srli":
+            return (a & 0xFFFFFFFF) >> (b & 0b11111)   # logical right
+        if mnemonic == "sra" or mnemonic == "srai":
+            return to_signed(a, 32) >> (b & 0b11111)   # arithmetic right
+        if mnemonic == "slt" or mnemonic == "slti":
+            return 1 if a < b else 0  # less than
+        if mnemonic == "sltu" or mnemonic == "sltiu":
+            # less than unsigned
+            return 1 if (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF) else 0
+
+        return 0

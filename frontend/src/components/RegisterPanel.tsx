@@ -11,9 +11,7 @@ function formatValue(reg: Register, fmt: DisplayFormat): string {
   if (typeof reg.value === 'string') return reg.value
   const num = Number(reg.value)
   if (fmt === 'DECIMAL') return String(num)
-  if (fmt === 'INSTRUCTION') return String(num) // placeholder until backend provides instruction strings
-  // HEXADECIMAL — pad to 8 chars for RISC-V style
-  return '0x' + num.toString(16).padStart(8, '0').toUpperCase()
+  return '0x' + (num >>> 0).toString(16).padStart(8, '0').toUpperCase()
 }
 
 const RegisterPanel: React.FC<RegisterPanelProps> = ({
@@ -32,14 +30,13 @@ const RegisterPanel: React.FC<RegisterPanelProps> = ({
         >
           <option value="HEXADECIMAL">HEXADECIMAL</option>
           <option value="DECIMAL">DECIMAL</option>
-          <option value="INSTRUCTION">INSTRUCTION</option>
         </select>
       </div>
 
       <div className="register-box">
         <div className="register-header">
-          <span>NAME</span>
-          <span>NUMBER</span>
+          <span>ABI</span>
+          <span>REG</span>
           <span>VALUE</span>
         </div>
         <div className="register-body">
@@ -49,7 +46,7 @@ const RegisterPanel: React.FC<RegisterPanelProps> = ({
               className={`register-row ${isLarge ? 'register-row--sm' : ''}`}
             >
               <span>{reg.name}</span>
-              <span>{reg.number}</span>
+              <span>{isLarge ? `x${reg.number}` : reg.number}</span>
               <span>{formatValue(reg, displayFormat)}</span>
             </div>
           ))}

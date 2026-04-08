@@ -9,8 +9,10 @@ export interface AssembledInstruction {
 /** One memory slot shown in the Memory panel */
 export interface MemorySlot {
   address: string       // binary (HYMN) or hex (RISC-V)
-  instruction: string   // "HALT" by default, or actual instruction
+  instruction: string   // decoded mnemonic text
+  value?: number        // raw numeric word (used for HEX / DECIMAL display)
   isActive: boolean
+  isChanged?: boolean   // flashes true for one step when the cell value changed
 }
 
 /** One CPU register */

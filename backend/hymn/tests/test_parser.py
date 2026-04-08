@@ -351,7 +351,50 @@ class TestParseIntegration:
 
 
 # ===========================================================================
-# 7. errors property
+# 7. Pseudo-ops: READ and WRITE
+# ===========================================================================
+
+class TestPseudoOps:
+
+    def setup_method(self):
+        self.p = Parser()
+
+    def test_read_encodes_as_load_30(self):
+        result = self.p.parse("READ")
+        assert result == [enc(LOAD, 30)]
+
+    def test_write_encodes_as_stor_31(self):
+        result = self.p.parse("WRITE")
+        assert result == [enc(STOR, 31)]
+
+    def test_read_with_operand_is_error(self):
+        result = self.p.parse("READ 5")
+        assert result is None
+        assert len(self.p.errors) == 1
+
+    def test_write_with_operand_is_error(self):
+        result = self.p.parse("WRITE 5")
+        assert result is None
+        assert len(self.p.errors) == 1
+
+    def test_read_and_write_in_program(self):
+        src = "READ\nWRITE\nHALT"
+        result = self.p.parse(src)
+        assert result == [enc(LOAD, 30), enc(STOR, 31), enc(HALT)]
+
+    def test_read_counts_as_one_instruction_for_labels(self):
+        src = "READ\nLOOP:\nHALT"
+        self.p.parse(src)
+        assert self.p.symbol_table["LOOP"] == 1
+
+    def test_write_counts_as_one_instruction_for_labels(self):
+        src = "WRITE\nLOOP:\nHALT"
+        self.p.parse(src)
+        assert self.p.symbol_table["LOOP"] == 1
+
+
+# ===========================================================================
+# 8. errors property
 # ===========================================================================
 
 class TestErrors:

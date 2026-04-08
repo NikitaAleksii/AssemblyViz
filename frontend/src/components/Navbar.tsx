@@ -57,7 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({
       <div className="speed-control">
         <input
           type="range"
-          min={50} max={1000} step={50}
+          min={0} max={1000} step={50}
           value={speedMs}
           onChange={e => onSpeedChange(Number(e.target.value))}
         />

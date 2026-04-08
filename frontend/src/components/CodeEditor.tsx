@@ -4,20 +4,27 @@ interface CodeEditorProps {
   code: string
   output: string
   isError: boolean
+  consoleOutput: string
   isaMode: string
   onCodeChange: (code: string) => void
-  onAssemble: () => void
+  onAssemble: () => void | Promise<boolean>
   onExport: () => void
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({
-  code, output, isError, isaMode,
+  code, output, isError, consoleOutput, isaMode,
   onCodeChange, onAssemble, onExport,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef    = useRef<HTMLInputElement>(null)
+  const lineNumbersRef  = useRef<HTMLDivElement>(null)
+
+  const syncScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (lineNumbersRef.current)
+      lineNumbersRef.current.scrollTop = e.currentTarget.scrollTop
+  }
 
   // Dynamic line numbers based on content
-  const lineCount = Math.max(code.split('\n').length, 6)
+  const lineCount = code.split('\n').length
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1)
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,12 +56,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       </div>
 
       <div className="editor-box">
-        <div className="line-numbers">
+        <div ref={lineNumbersRef} className="line-numbers">
           {lineNumbers.map(n => <span key={n}>{n}</span>)}
         </div>
         <textarea
           value={code}
           onChange={e => onCodeChange(e.target.value)}
+          onScroll={syncScroll}
           placeholder={`Write ${isaMode} code here...`}
           spellCheck={false}
         />
@@ -62,12 +70,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
       <div className="output-section">
         <h3>OUTPUT</h3>
-        <div
-          className="output-box"
-          style={{ color: isError ? '#c62828' : '#666', fontStyle: 'normal' }}
-        >
-          {output || 'No output yet...'}
+        <div className="output-box">
+          {consoleOutput || <span className="output-placeholder">No output yet...</span>}
         </div>
+        {output && (
+          <div className="status-line" style={{ color: isError ? '#c62828' : '#888' }}>
+            {output}
+          </div>
+        )}
       </div>
     </section>
   )

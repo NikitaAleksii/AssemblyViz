@@ -349,3 +349,86 @@ class TestSnapshot:
         snap = m.snapshot()
         snap["memory"][0] = 999
         # assert m.read_memory(0) == 0
+
+    def test_snapshot_includes_io_output(self):
+        m = MachineState(output_fn=lambda v: None)
+        assert "io_output" in m.snapshot()
+
+
+# ===========================================================================
+# 14. Memory-mapped I/O (READ / WRITE pseudo-ops)
+# ===========================================================================
+
+class TestMemoryMappedIO:
+
+    def test_load_30_reads_from_input_fn(self):
+        m = MachineState(input_fn=lambda: 42)
+        m.load_program([enc(LD, MachineState.READ_ADDR), enc(H, 0)])
+        m.step()
+        assert m.ac == 42
+
+    def test_load_30_does_not_read_from_memory(self):
+        m = MachineState(input_fn=lambda: 7)
+        m.write_memory(MachineState.READ_ADDR, 99)
+        m.load_program([enc(LD, MachineState.READ_ADDR), enc(H, 0)])
+        m.step()
+        assert m.ac == 7   # from input_fn, not memory[30]
+
+    def test_stor_31_calls_output_fn(self):
+        output = []
+        m = MachineState(output_fn=output.append)
+        m.ac = 55
+        m.load_program([enc(ST, MachineState.WRITE_ADDR), enc(H, 0)])
+        m.step()
+        assert output == [55]
+
+    def test_stor_31_does_not_write_to_memory(self):
+        m = MachineState(output_fn=lambda v: None)
+        m.ac = 10
+        m.load_program([enc(ST, MachineState.WRITE_ADDR), enc(H, 0)])
+        m.step()
+        assert m.read_memory(MachineState.WRITE_ADDR) == 0  # untouched
+
+    def test_stor_31_recorded_in_io_output(self):
+        m = MachineState(output_fn=lambda v: None)
+        m.ac = 123
+        m.load_program([enc(ST, MachineState.WRITE_ADDR), enc(H, 0)])
+        m.step()
+        assert m.snapshot()["io_output"] == [123]
+
+    def test_multiple_writes_accumulate_in_io_output(self):
+        values = iter([1, 2, 3])
+        output = []
+        m = MachineState(input_fn=lambda: next(values), output_fn=output.append)
+        # READ, WRITE, READ, WRITE, HALT
+        prog = [
+            enc(LD, MachineState.READ_ADDR),
+            enc(ST, MachineState.WRITE_ADDR),
+            enc(LD, MachineState.READ_ADDR),
+            enc(ST, MachineState.WRITE_ADDR),
+            enc(H, 0),
+        ]
+        m.load_program(prog)
+        m.run()
+        assert output == [1, 2]
+        assert m.snapshot()["io_output"] == [1, 2]
+
+    def test_reset_clears_io_output(self):
+        m = MachineState(output_fn=lambda v: None)
+        m.ac = 5
+        m.load_program([enc(ST, MachineState.WRITE_ADDR), enc(H, 0)])
+        m.step()
+        m.reset()
+        assert m.snapshot()["io_output"] == []
+
+    def test_load_30_advances_pc(self):
+        m = MachineState(input_fn=lambda: 0)
+        m.load_program([enc(LD, MachineState.READ_ADDR), enc(H, 0)])
+        m.step()
+        assert m.pc == 1
+
+    def test_stor_31_advances_pc(self):
+        m = MachineState(output_fn=lambda v: None)
+        m.load_program([enc(ST, MachineState.WRITE_ADDR), enc(H, 0)])
+        m.step()
+        assert m.pc == 1
