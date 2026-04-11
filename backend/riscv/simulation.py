@@ -8,7 +8,7 @@ from riscv.registers import *
 
 class Simulation:
 
-    def __init__(self, memory_depth=256):
+    def __init__(self, memory_depth=25600):
         self.memory_depth = memory_depth
         self.memory = Memory(self.memory_depth, "")
         self.registers = Registers()
@@ -16,6 +16,7 @@ class Simulation:
         self._errors = []
         self.PC = 0
         self.halted = False
+        self._io_output: list[str] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -65,6 +66,7 @@ class Simulation:
         self.registers = Registers()
         self.PC = 0
         self.halted = False
+        self._io_output = []
 
     def read_label(self, label: str, count: int = 1) -> list[int] | None:
         if label not in self._symbol_table:
@@ -79,11 +81,12 @@ class Simulation:
             "halted": self.halted,
             "registers": [
                 {"index": i,
-                 "names": REGISTER_NAMES[i],
+                 "names": REGISTER_NAMES[i + 32],
                  "value": self.registers.read(i)}
                 for i in range(32)
             ],
-            "memory": self.memory.memory
+            "memory":    self.memory.memory,
+            "io_output": list(self._io_output),
         }
 
     # ------------------------------------------------------------------
@@ -245,13 +248,32 @@ class Simulation:
 
         # Handle System calls
         elif instruction.isSystem:
+            a0 = self.registers.read(10)
             a7 = self.registers.read(17)  # syscall number
-            if a7 == 1:    # print integer - keep running
+            if a7 == 1:    # print integer
+                self._io_output.append(str(a0))
                 self.PC += 4
-            elif a7 == 4:  # print string — keep running
+            elif a7 == 4:  # print null-terminated string at address a0
+                self._io_output.append(self._read_cstring(a0))
                 self.PC += 4
             else:          # exit (10) or unknown — halt
                 self.halted = True
+
+    def _read_cstring(self, addr: int) -> str:
+        """Read a null-terminated byte string from memory (little-endian)."""
+        chars = []
+        while True:
+            word_addr = addr & ~0b11
+            byte_pos  = addr & 0b11
+            word = self.memory.memory_read(word_addr)
+            if word is None:
+                break
+            byte = (word >> (byte_pos * 8)) & 0xFF
+            if byte == 0:
+                break
+            chars.append(chr(byte))
+            addr += 1
+        return ''.join(chars)
 
     # Implements arithmetic logic unit (ALU)
     def _alu(self, mnemonic, a, b) -> int:

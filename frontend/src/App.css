@@ -1,0 +1,236 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
+.app-shell { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── Navbar ─────────────────────────────────────────────────── */
+.topbar {
+  height: 56px;
+  background: white;
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+/* Logo */
+.logo { display: flex; align-items: center; }
+.logo img { display: block; }
+
+/* Tabs — gray pill background */
+.top-tabs {
+  display: flex;
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.tab {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tab.active {
+  background: white;
+  color: #ef3b33;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.tab:hover:not(.active) { color: #555; }
+
+/* Playback controls */
+.top-controls { display: flex; align-items: center; gap: 4px; margin: 0 auto; }
+.ctrl-btn {
+  border: none; background: none;
+  color: #ef3b33; font-size: 17px;
+  cursor: pointer; padding: 4px 7px; line-height: 1;
+  transition: opacity 0.15s;
+}
+.ctrl-btn:hover { opacity: 0.6; }
+
+/* Speed — smaller thumb, wider track */
+.speed-control { display: flex; align-items: center; gap: 8px; }
+.speed-control input[type=range] {
+  accent-color: #ef3b33;
+  width: 130px;
+  height: 3px;
+  cursor: pointer;
+}
+.speed-label { font-size: 12px; color: #888; min-width: 48px; }
+
+/* ISA toggle — with padding */
+.mode-switch { display: flex; }
+.mode {
+  border: 1px solid #ddd;
+  background: white;
+  padding: 6px 20px;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; color: #aaa;
+  transition: all 0.15s;
+  letter-spacing: 0.3px;
+}
+.mode:first-child { border-radius: 6px 0 0 6px; }
+.mode:last-child  { border-radius: 0 6px 6px 0; border-left: none; }
+.mode.active { background: #ef3b33; color: white; border-color: #ef3b33; }
+
+/* ── Main layout ────────────────────────────────────────────── */
+.main-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr 240px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.left-panel, .center-panel, .right-panel {
+  display: flex; flex-direction: column;
+  border-right: 1px solid #e5e5e5;
+  overflow: hidden; background: white;
+}
+.right-panel { border-right: none; }
+
+/* ── Panel header ───────────────────────────────────────────── */
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e5e5e5;
+  flex-shrink: 0;
+}
+.panel-header h2 {
+  color: #ef3b33; font-size: 11px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+
+/* Editor buttons */
+.editor-actions { display: flex; gap: 5px; }
+.editor-actions button {
+  background: white; border: 1px solid #ccc; color: #555;
+  padding: 4px 10px; border-radius: 5px; cursor: pointer;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  transition: border-color 0.15s;
+}
+.editor-actions button:hover { border-color: #999; }
+.editor-actions button.primary { border-color: #ef3b33; color: #ef3b33; }
+.editor-actions button.primary:hover { background: #ef3b33; color: white; }
+
+/* Center panel export button */
+.center-panel .panel-header button {
+  background: white; border: 1px solid #ef3b33; color: #ef3b33;
+  padding: 4px 10px; border-radius: 5px; cursor: pointer;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+}
+.center-panel .panel-header button:hover { background: #ef3b33; color: white; }
+
+/* Format dropdowns */
+.format-select {
+  border: 1px solid #ddd; background: white;
+  padding: 3px 8px; border-radius: 5px;
+  font-size: 11px; font-weight: 600; cursor: pointer; color: #555;
+}
+
+/* ── Code editor ────────────────────────────────────────────── */
+.editor-box {
+  display: grid; grid-template-columns: 36px 1fr;
+  flex: 1; overflow: hidden;
+  border-bottom: 1px solid #e5e5e5;
+}
+.line-numbers {
+  background: #f8f8f8; border-right: 1px solid #e5e5e5;
+  color: #ccc; padding: 12px 6px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  line-height: 1.65; text-align: right; user-select: none; overflow: hidden;
+}
+.line-numbers span { display: block; }
+.editor-box textarea {
+  width: 100%; height: 100%; border: none; outline: none; resize: none;
+  padding: 12px 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  color: #333; line-height: 1.65; background: white;
+}
+.editor-box textarea::placeholder { color: #ccc; }
+
+/* Output */
+.output-section { flex-shrink: 0; padding: 8px 14px 10px; }
+.output-section h3 {
+  font-size: 11px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase; color: #ef3b33; margin-bottom: 6px;
+}
+.output-box {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: #333; line-height: 1.5; min-height: 36px;
+}
+.output-placeholder { color: #999; }
+.status-line {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  margin-top: 5px; color: #888;
+}
+
+/* ── Memory panel ───────────────────────────────────────────── */
+.memory-table-wrap { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.memory-header {
+  display: grid; grid-template-columns: 90px 1fr;
+  padding: 7px 14px; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: #aaa; border-bottom: 1px solid #e5e5e5;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.memory-body { overflow-y: auto; flex: 1; }
+.memory-row {
+  display: grid; grid-template-columns: 90px 1fr;
+  padding: 6px 14px; border-bottom: 1px solid #f2f2f2;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+}
+.memory-row.active-row  { background: #f0fff8; border-left: 3px solid #2ecc71; }
+@keyframes memory-flash {
+  0%   { background: #fff9c4; }
+  25%  { background: #ffe082; }
+  100% { background: transparent; }
+}
+.memory-row.changed-row { animation: memory-flash 1.4s ease-out; }
+.memory-address { color: #555; }
+.memory-instruction { color: #333; }
+
+/* ── Results panel ──────────────────────────────────────────── */
+.results-box { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.results-header {
+  display: grid; grid-template-columns: 130px 120px 1fr;
+  padding: 7px 14px; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: #aaa; border-bottom: 1px solid #e5e5e5;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.results-body { overflow-y: auto; flex: 1; }
+.results-row {
+  display: grid; grid-template-columns: 130px 120px 1fr;
+  padding: 7px 14px; border-bottom: 1px solid #f2f2f2;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+}
+.results-row:hover { background: #fafafa; }
+.results-row.active-row { background: #f0fff8; border-left: 3px solid #2ecc71; }
+
+/* ── Register panel ─────────────────────────────────────────── */
+.register-box { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.register-header {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  padding: 7px 14px; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; color: #aaa; border-bottom: 1px solid #e5e5e5;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.register-body { overflow-y: auto; flex: 1; }
+.register-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  padding: 7px 14px; border-bottom: 1px solid #f2f2f2;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+}
+/* Smaller rows for RISC-V 32 registers */
+.register-row--sm {
+  padding: 4px 14px;
+  font-size: 11px;
+}

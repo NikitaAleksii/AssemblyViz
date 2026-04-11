@@ -162,6 +162,19 @@ class Parser:
         """
         mnemonic = tokens[0]
 
+        # Raw integer data word (e.g. bare `5` or a label-aliased constant)
+        if _DECIMAL.fullmatch(mnemonic):
+            if len(tokens) != 1:
+                self._add_error(line_number, ' '.join(tokens),
+                                "Data word must be a single integer")
+                return None
+            value = int(mnemonic)
+            if not (0 <= value <= 255):
+                self._add_error(line_number, ' '.join(tokens),
+                                f"Data value {value} out of 8-bit range (0–255)")
+                return None
+            return value
+
         # Pseudo-ops: READ → LOAD 30 (0b11110), WRITE → STOR 31 (0b11111)
         if mnemonic == "READ":
             if len(tokens) != 1:
@@ -219,7 +232,7 @@ class Parser:
         Returns:
             List of token strings (may be empty for blank/comment lines).
         """
-        line = raw_line.split(';')[0]  # drop comment
+        line = raw_line.split(';')[0].split('#')[0]  # drop ; and # comments
         line = line.strip().upper()
         if not line:
             return []
