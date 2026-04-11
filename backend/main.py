@@ -1,6 +1,4 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(__file__))
+# FastAPI backend server — bridges the frontend UI with the Python assembler/simulator engine
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +11,7 @@ from riscv.assembler import Assembler as RiscvAssembler
 from riscv.simulation import Simulation
 from riscv.isa import DIRECTIVES
 
+# Creates the FastAPI app and allows the Vite dev server (port 5173) to make requests via CORS
 app = FastAPI()
 
 app.add_middleware(
@@ -22,13 +21,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Request models ────────────────────────────────────────────────────────────
+# ── Request models that define what JSON must send ────────────────────────────
 
 class HymnAssembleRequest(BaseModel):
     source: str
 
 class HymnStepRequest(BaseModel):
-    memory: list[int]   # full 32-byte snapshot (preserves STOR modifications)
+    memory: list[int]   # full 32-byte snapshot
     pc: int
     ac: int
 
@@ -37,13 +36,14 @@ class RiscvAssembleRequest(BaseModel):
 
 class RiscvStepRequest(BaseModel):
     source: str
-    step_count: int  # number of machine words (display rows) to execute
+    step_count: int  # number of machine words to execute
 
 # ── HYMN helpers ──────────────────────────────────────────────────────────────
 
 _HYMN_MNEMONICS = ["HALT", "JUMP", "JZER", "JPOS", "LOAD", "STOR", "ADD", "SUB"]
 
 def _decode_hymn_word(word: int) -> str:
+    """Decode a raw 8-bit word into a human-readable mnemonic like "ADD 5" or "READ"."""
     opcode  = (word >> 5) & 0b111
     address = word & 0b11111
     if opcode == 0:
@@ -55,6 +55,7 @@ def _decode_hymn_word(word: int) -> str:
     return f"{_HYMN_MNEMONICS[opcode]} {address}"
 
 def _hymn_memory_slots(memory: list[int]) -> list[dict]:
+    """Build a display array with address, raw value, and decoded instruction for each memory slot."""
     return [
         {
             "address": bin(i)[2:].zfill(5),
@@ -65,7 +66,7 @@ def _hymn_memory_slots(memory: list[int]) -> list[dict]:
     ]
 
 def _hymn_instruction_lines(source: str) -> list[str]:
-    """Return the non-empty, non-label-only HYMN source lines that produce machine words."""
+    """Strip comments and labels from source, returning bare instruction tokens for the results panel."""
     result = []
     for raw in source.splitlines():
         stripped = raw.split(';')[0].split('#')[0].strip().upper()
@@ -84,7 +85,11 @@ def _hymn_instruction_lines(source: str) -> list[str]:
 _DATA_DIRECTIVES = DIRECTIVES - {".text", ".data"}
 
 def _riscv_build_display(parsed_lines, symbol_table) -> list[dict]:
-    """Build one display row per machine word, handling pseudo-op expansion."""
+    """Build one display row per emitted machine word.
+
+    Pseudo-instructions that expand to multiple words have their continuation
+    rows marked with a "↳" symbol.
+    """
     assembler = RiscvAssembler()
     assembler._labels = symbol_table
     assembler._pc = 0
@@ -115,6 +120,7 @@ def _riscv_build_display(parsed_lines, symbol_table) -> list[dict]:
 
 @app.post("/api/hymn/assemble")
 def hymn_assemble(req: HymnAssembleRequest):
+    """Parse and assemble HYMN source, returning instructions, memory display, and initial registers."""
     parser = HymnParser()
     words = parser.parse(req.source)
     if words is None:
@@ -142,9 +148,14 @@ def hymn_assemble(req: HymnAssembleRequest):
         "registers":    {"pc": snap["pc"], "ac": snap["ac"], "ir": snap["ir"], "halted": snap["halted"]},
     }
 
-
 @app.post("/api/hymn/step")
 def hymn_step(req: HymnStepRequest):
+    """Execute one HYMN instruction.
+
+    Reconstructs machine state from the memory/PC/AC sent by the frontend
+    (the backend is stateless), runs one step, and returns updated registers,
+    memory, halt status, and any console output.
+    """
     machine = MachineState(input_fn=lambda: 0, output_fn=lambda v: None)
     if len(req.memory) != 32:
         raise HTTPException(status_code=400, detail="Memory must be exactly 32 bytes")
@@ -175,6 +186,7 @@ def hymn_step(req: HymnStepRequest):
 
 @app.post("/api/riscv/assemble")
 def riscv_assemble(req: RiscvAssembleRequest):
+    """Parse and assemble RISC-V source, returning machine words, instruction display rows, and initial registers."""
     rparser = RiscvParser()
     parsed_lines = rparser.parse(req.source)
     if parsed_lines is None:
@@ -200,9 +212,13 @@ def riscv_assemble(req: RiscvAssembleRequest):
         "halted":       snap["halted"],
     }
 
-
 @app.post("/api/riscv/step")
 def riscv_step(req: RiscvStepRequest):
+    """Execute RISC-V source up to step N (stateless).
+
+    Re-simulates from scratch each call: runs N-1 warm-up steps silently,
+    then captures PC, registers, halt status, and console output from step N only.
+    """
     sim = Simulation()
     sim.load(req.source)
     if sim._errors:

@@ -1,3 +1,16 @@
+/**
+ * App.tsx
+ *
+ * Root component for AssemblyViz — an interactive assembly simulator supporting
+ * two ISA modes: HYMN (a simple educational ISA) and RISC-V.
+ *
+ * Responsibilities:
+ *  - Owns all top-level simulation state (registers, memory, assembled instructions)
+ *  - Drives the assemble → step → play → back → reset lifecycle via backend API calls
+ *  - Passes derived state and handlers down to Navbar, CodeEditor, MemoryPanel,
+ *    ResultsPanel, and RegisterPanel
+ */
+
 import { useState, useEffect, useRef } from 'react'
 import Navbar from './components/Navbar'
 import CodeEditor from './components/CodeEditor'
@@ -12,30 +25,50 @@ import {
 } from './types'
 import './App.css'
 
+/**
+ * A snapshot of simulator state at a single point in execution history.
+ * Pushed onto `stepHistory` before every forward step so the user can step back.
+ */
 interface HistoryEntry {
   registers: Register[]
   memorySlots: MemorySlot[]
+  /** The index of the instruction that was active when this snapshot was taken (-1 = before first step). */
   currentStep: number
 }
 
+/**
+ * All inputs needed to execute one simulation step.
+ * Passed explicitly so `performStep` is a pure-ish function that does not
+ * capture stale React state from closures.
+ */
 interface StepParams {
+  /** Raw machine-word array produced by the assembler (HYMN only). */
   words: number[]
   registers: Register[]
   memorySlots: MemorySlot[]
   assembled: AssembledInstruction[]
+  /** Index of the last executed instruction (-1 before the first step). */
   currentStep: number
   mode: ISAMode
+  /** Original source text, required for RISC-V's replay-from-scratch strategy. */
   source: string
 }
 
+/**
+ * The subset of state returned by `performStep` that the play-loop needs
+ * to thread through successive steps without relying on React state updates
+ * (which are asynchronous and would otherwise be stale inside a timer callback).
+ */
 interface StepResult {
   registers: Register[]
   memorySlots: MemorySlot[]
   currentStep: number
+  /** False when the program has halted or run past the last instruction. */
   shouldContinue: boolean
 }
 
 function App() {
+  // ── Editor / UI state ─────────────────────────────────────────
   const [code, setCode]             = useState('')
   const [output, setOutput]         = useState('')
   const [isError, setIsError]       = useState(false)
@@ -46,19 +79,30 @@ function App() {
   const [memoryFormat, setMemFmt]   = useState<DisplayFormat>('HEXADECIMAL')
   const [registerFormat, setRegFmt] = useState<DisplayFormat>('HEXADECIMAL')
 
+  // ── Simulation state ──────────────────────────────────────────
   const [words, setWords]             = useState<number[]>([])
   const [assembled, setAssembled]     = useState<AssembledInstruction[]>([])
   const [memorySlots, setMemorySlots] = useState<MemorySlot[]>(buildHYMNMemory())
   const [registers, setRegisters]     = useState<Register[]>(HYMN_REGISTERS)
+  /** Index of the most recently executed instruction (-1 = not started). */
   const [currentStep, setCurrentStep] = useState(-1)
 
+  // ── Refs (values that must not trigger re-renders) ────────────
+  /** Handle for the currently scheduled play-loop timeout. */
   const runTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Whether the play-loop is active. Using a ref avoids stale closure issues inside setTimeout callbacks. */
   const isPlaying   = useRef(false)
+  /** Stack of state snapshots enabling the "Step Back" feature. */
   const stepHistory = useRef<HistoryEntry[]>([])
+  /** Mirror of `speedMs` state kept in a ref so the play-loop always reads the latest value. */
   const speedMsRef  = useRef(speedMs)
   useEffect(() => { speedMsRef.current = speedMs }, [speedMs])
 
   // ── ISA mode change: reset everything ────────────────────────
+  /**
+   * When the user switches ISAs, tear down any in-progress run and reinitialise
+   * all simulation state to the defaults for the newly selected architecture.
+   */
   useEffect(() => {
     stopRun()
     setWords([])
@@ -71,16 +115,29 @@ function App() {
     showOutput(`${isaMode} mode selected.`)
   }, [isaMode])
 
+  /**
+   * Display a status or error message in the output bar below the editor.
+   * @param msg   - The message text to display.
+   * @param error - When true, the message is styled as an error.
+   */
   function showOutput(msg: string, error = false) {
     setOutput(msg); setIsError(error)
   }
 
+  /** Cancel the play-loop timer and mark the simulator as stopped. */
   function stopRun() {
     isPlaying.current = false
     if (runTimer.current) { clearTimeout(runTimer.current); runTimer.current = null }
   }
 
   // ── Assemble ─────────────────────────────────────────────────
+  /**
+   * Send the current source code to the backend assembler for the active ISA.
+   * On success, populates `assembled`, `memorySlots`, `registers`, and `words`
+   * with the response data and resets step history.
+   *
+   * @returns `true` on success, `false` if assembly failed or the editor is empty.
+   */
   async function handleAssemble(): Promise<boolean> {
     stopRun()
     if (!code.trim()) {
@@ -119,6 +176,7 @@ function App() {
           { name: 'AC', number: 2, value: data.registers.ac },
         ])
       } else {
+        // RISC-V: memory panel mirrors the instruction list; registers come from the backend
         setMemorySlots(data.instructions.map((s: { address: string; code: string; instruction: string }) => ({
           address: s.address, instruction: s.instruction, value: parseInt(s.code, 16), isActive: false,
         })))
@@ -141,6 +199,21 @@ function App() {
   }
 
   // ── Core step: takes explicit params, returns new state ──────
+  /**
+   * Execute one instruction step by calling the backend step API.
+   *
+   * Before making the API call, the current state is pushed onto `stepHistory`
+   * so it can be restored by `handleBack`. If the step fails the snapshot is
+   * popped to keep the history consistent.
+   *
+   * Strategy differs by ISA:
+   *  - **HYMN**: stateful — the backend advances a persistent machine state by one instruction.
+   *  - **RISC-V**: stateless replay — the backend re-simulates from the beginning up to
+   *    `step_count` instructions, so the frontend must track the execution count.
+   *
+   * @param p - Explicit snapshot of all simulation state at call time.
+   * @returns Updated state slice and a `shouldContinue` flag, or `null` on failure / end of program.
+   */
   async function performStep(p: StepParams): Promise<StepResult | null> {
     if (!p.assembled.length) return null
 
@@ -186,6 +259,7 @@ function App() {
             instruction: s.decoded,
             value:     s.value,
             isActive:  i === executedIdx,
+            // Highlight cells whose value changed during this step
             isChanged: s.value !== (p.memorySlots[i]?.value ?? 0),
           })
         )
@@ -224,7 +298,7 @@ function App() {
         }
         const data = await res.json()
 
-        // Find display row matching the PC that was just executed
+        // Match the executed PC back to a row in the assembled listing for highlighting
         const executedPcHex = `0x${data.executed_pc.toString(16).padStart(8, '0')}`
         const highlightIdx = p.assembled.findIndex(row => row.address === executedPcHex)
 
@@ -259,6 +333,10 @@ function App() {
   }
 
   // ── Step Forward ─────────────────────────────────────────────
+  /**
+   * Advance the simulation by one instruction.
+   * Assembles first if no instructions are loaded yet.
+   */
   async function handleStep() {
     stopRun()
     if (!assembled.length) { await handleAssemble(); return }
@@ -266,6 +344,10 @@ function App() {
   }
 
   // ── Step Back ────────────────────────────────────────────────
+  /**
+   * Restore the most recently saved history snapshot, effectively rewinding
+   * the simulation by one instruction.
+   */
   function handleBack() {
     stopRun()
     if (!stepHistory.current.length) { showOutput('Nothing to go back through.', true); return }
@@ -279,6 +361,18 @@ function App() {
   }
 
   // ── Play ─────────────────────────────────────────────────────
+  /**
+   * Run the simulation continuously at the user-configured speed until the
+   * program halts or the user stops playback.
+   *
+   * If no code has been assembled yet, assembles first and prompts the user
+   * to press Play again so they can review the listing before execution starts.
+   *
+   * The play-loop uses a recursive `setTimeout` pattern (rather than `setInterval`)
+   * so that each step fully completes — including its async API round-trip — before
+   * the next one is scheduled. State is threaded through the loop explicitly to
+   * avoid React's asynchronous state update batching.
+   */
   async function handlePlay() {
     if (!assembled.length) {
       const ok = await handleAssemble()
@@ -300,6 +394,7 @@ function App() {
         runTimer.current = null
         return
       }
+      // Thread the latest state forward so the next iteration doesn't use stale React state
       state = { ...state, registers: result.registers, memorySlots: result.memorySlots, currentStep: result.currentStep }
       runTimer.current = setTimeout(loop, speedMsRef.current)
     }
@@ -308,6 +403,10 @@ function App() {
   }
 
   // ── Reset ─────────────────────────────────────────────────────
+  /**
+   * Stop any in-progress run and restore all simulation state to the
+   * defaults for the currently selected ISA, without clearing the editor.
+   */
   function handleReset() {
     stopRun()
     setWords([])
@@ -320,6 +419,10 @@ function App() {
     showOutput('Reset.')
   }
 
+  /**
+   * Export the current editor contents as a plain-text `.txt` file download.
+   * No-ops with an error message if the editor is empty.
+   */
   function handleExport() {
     if (!code.trim()) { showOutput('Nothing to export.', true); return }
     const blob = new Blob([code], { type: 'text/plain' })
@@ -330,6 +433,11 @@ function App() {
     showOutput('Exported.')
   }
 
+  /**
+   * Export the assembled instruction listing (address, machine code, mnemonic)
+   * as a plain-text `.txt` file download.
+   * No-ops with an error message if nothing has been assembled yet.
+   */
   function handleExportResults() {
     if (!assembled.length) { showOutput('No results to export.', true); return }
     const text = assembled.map(l => `${l.address}    ${l.code}    ${l.instruction}`).join('\n')
@@ -341,6 +449,7 @@ function App() {
     showOutput('Results exported.')
   }
 
+  // Stop any running timer when the component unmounts
   useEffect(() => () => stopRun(), [])
 
   return (
