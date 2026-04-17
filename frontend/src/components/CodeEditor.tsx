@@ -30,6 +30,10 @@ interface CodeEditorProps {
   onAssemble: () => void | Promise<boolean>
   /** Triggers download of the current source as a text file. */
   onExport: () => void
+  /** Input queue lines consumed by the HYMN READ pseudo-op (one integer per entry). */
+  inputQueue: string[]
+  /** Called when the user edits the input textarea. */
+  onInputQueueChange: (lines: string[]) => void
 }
 
 /**
@@ -42,6 +46,7 @@ interface CodeEditorProps {
 const CodeEditor: React.FC<CodeEditorProps> = ({
   code, output, isError, consoleOutput, isaMode,
   onCodeChange, onAssemble, onExport,
+  inputQueue, onInputQueueChange,
 }) => {
   /** Ref to the hidden `<input type="file">` element, triggered programmatically by the IMPORT button. */
   const fileInputRef    = useRef<HTMLInputElement>(null)
@@ -56,6 +61,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     if (lineNumbersRef.current)
       lineNumbersRef.current.scrollTop = e.currentTarget.scrollTop
   }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+    onInputQueueChange(e.target.value.split('\n'))
+  const inputQueueText = inputQueue.join('\n')
 
   // Derive one number label per line from the current source text
   const lineCount = code.split('\n').length
@@ -112,6 +121,20 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           spellCheck={false}
         />
       </div>
+
+      {/* Input queue: shown only for HYMN, consumed by READ pseudo-op */}
+      {isaMode === 'HYMN' && (
+        <div className="input-section">
+          <h3>INPUT</h3>
+          <textarea
+            className="input-box"
+            value={inputQueueText}
+            onChange={handleInputChange}
+            placeholder={"One integer per line...\n(consumed by READ)"}
+            spellCheck={false}
+          />
+        </div>
+      )}
 
       {/* Output section: IO console on top, assembler/step status line below */}
       <div className="output-section">
