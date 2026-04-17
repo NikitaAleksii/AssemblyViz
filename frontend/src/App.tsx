@@ -34,6 +34,7 @@ interface HistoryEntry {
   memorySlots: MemorySlot[]
   /** The index of the instruction that was active when this snapshot was taken (-1 = before first step). */
   currentStep: number
+  inputQueuePos: number
 }
 
 /**
@@ -52,6 +53,8 @@ interface StepParams {
   mode: ISAMode
   /** Original source text, required for RISC-V's replay-from-scratch strategy. */
   source: string
+  inputQueue: string[]
+  inputQueuePos: number
 }
 
 /**
@@ -65,6 +68,7 @@ interface StepResult {
   currentStep: number
   /** False when the program has halted or run past the last instruction. */
   shouldContinue: boolean
+  inputQueuePos: number
 }
 
 function App() {
@@ -98,6 +102,9 @@ function App() {
   const speedMsRef  = useRef(speedMs)
   useEffect(() => { speedMsRef.current = speedMs }, [speedMs])
 
+  const [inputQueue, setInputQueue] = useState<string[]>([])
+  const inputQueuePos = useRef<number>(0)
+
   // ── ISA mode change: reset everything ────────────────────────
   /**
    * When the user switches ISAs, tear down any in-progress run and reinitialise
@@ -111,6 +118,8 @@ function App() {
     setMemorySlots(isaMode === 'HYMN' ? buildHYMNMemory() : buildRISCVMemory(0))
     setRegisters(isaMode === 'HYMN' ? [...HYMN_REGISTERS] : [...RISCV_DEFAULT_REGISTERS])
     stepHistory.current = []
+    inputQueuePos.current = 0
+    setInputQueue([])
     setConsole('')
     showOutput(`${isaMode} mode selected.`)
   }, [isaMode])
@@ -189,6 +198,7 @@ function App() {
 
       setCurrentStep(-1)
       stepHistory.current = []
+      inputQueuePos.current = 0
       setConsole('')
       showOutput(`Assembled ${data.instructions.length} line(s) in ${isaMode} mode.`)
       return true
@@ -219,9 +229,10 @@ function App() {
 
     // Save state for Back before modifying anything
     stepHistory.current.push({
-      registers:   p.registers,
-      memorySlots: p.memorySlots,
-      currentStep: p.currentStep,
+      registers:     p.registers,
+      memorySlots:   p.memorySlots,
+      currentStep:   p.currentStep,
+      inputQueuePos: p.inputQueuePos,
     })
 
     try {
@@ -235,10 +246,20 @@ function App() {
           return null
         }
 
+        const currentWord = p.memorySlots[pc]?.value ?? 0
+        const isRead = ((currentWord >> 5) & 0b111) === 0b100 && (currentWord & 0b11111) === 30
+        let ioInput = 0
+        let nextQueuePos = p.inputQueuePos
+        if (isRead) {
+          const parsed = parseInt(p.inputQueue[p.inputQueuePos] ?? '', 10)
+          ioInput = Number.isNaN(parsed) ? 0 : parsed
+          nextQueuePos = p.inputQueuePos + 1
+        }
+
         const res = await fetch('/api/hymn/step', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ memory: p.memorySlots.map(s => s.value ?? 0), pc, ac }),
+          body: JSON.stringify({ memory: p.memorySlots.map(s => s.value ?? 0), pc, ac, io_input: ioInput }),
         })
         if (!res.ok) {
           showOutput('Step failed.', true)
@@ -269,6 +290,7 @@ function App() {
         setMemorySlots(newMemSlots)
         setRegisters(newRegisters)
         setCurrentStep(executedIdx)
+        if (isRead) inputQueuePos.current = nextQueuePos
 
         const cont = !data.halted && data.pc < p.assembled.length
         if (data.io_output?.length) {
@@ -279,7 +301,7 @@ function App() {
         } else {
           showOutput(`Step ${executedIdx + 1}: ${p.assembled[executedIdx].instruction}`)
         }
-        return { registers: newRegisters, memorySlots: newMemSlots, currentStep: executedIdx, shouldContinue: cont }
+        return { registers: newRegisters, memorySlots: newMemSlots, currentStep: executedIdx, shouldContinue: cont, inputQueuePos: nextQueuePos }
 
       } else {
         // RISC-V: re-simulate from scratch to execution count N
@@ -323,7 +345,7 @@ function App() {
             ? `Halted at step ${execCount}.`
             : `Step ${execCount}: ${instrName}`
         )
-        return { registers: newRegisters, memorySlots: newMemSlots, currentStep: execCount, shouldContinue: !data.halted }
+        return { registers: newRegisters, memorySlots: newMemSlots, currentStep: execCount, shouldContinue: !data.halted, inputQueuePos: p.inputQueuePos }
       }
     } catch {
       showOutput('Network error during step.', true)
@@ -340,7 +362,7 @@ function App() {
   async function handleStep() {
     stopRun()
     if (!assembled.length) { await handleAssemble(); return }
-    await performStep({ words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: code })
+    await performStep({ words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: code, inputQueue, inputQueuePos: inputQueuePos.current })
   }
 
   // ── Step Back ────────────────────────────────────────────────
@@ -355,6 +377,7 @@ function App() {
     setRegisters(prev.registers)
     setMemorySlots(prev.memorySlots)
     setCurrentStep(prev.currentStep)
+    inputQueuePos.current = prev.inputQueuePos
     setAssembled(assembled.map((l, i) => ({ ...l, isActive: i === prev.currentStep })))
     if (prev.currentStep < 0) showOutput('Returned to start.')
     else showOutput(`Moved back to step ${prev.currentStep + 1}.`)
@@ -384,7 +407,7 @@ function App() {
     isPlaying.current = true
     showOutput('Running...')
 
-    let state: StepParams = { words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: code }
+    let state: StepParams = { words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: code, inputQueue, inputQueuePos: inputQueuePos.current }
 
     const loop = async () => {
       if (!isPlaying.current) return
@@ -395,7 +418,7 @@ function App() {
         return
       }
       // Thread the latest state forward so the next iteration doesn't use stale React state
-      state = { ...state, registers: result.registers, memorySlots: result.memorySlots, currentStep: result.currentStep }
+      state = { ...state, registers: result.registers, memorySlots: result.memorySlots, currentStep: result.currentStep, inputQueuePos: result.inputQueuePos }
       runTimer.current = setTimeout(loop, speedMsRef.current)
     }
 
@@ -415,6 +438,7 @@ function App() {
     setMemorySlots(isaMode === 'HYMN' ? buildHYMNMemory() : buildRISCVMemory(0))
     setRegisters(isaMode === 'HYMN' ? [...HYMN_REGISTERS] : [...RISCV_DEFAULT_REGISTERS])
     stepHistory.current = []
+    inputQueuePos.current = 0
     setConsole('')
     showOutput('Reset.')
   }
@@ -469,6 +493,8 @@ function App() {
               consoleOutput={consoleOutput}
               onCodeChange={setCode}    onAssemble={handleAssemble}
               onExport={handleExport}
+              inputQueue={inputQueue}
+              onInputQueueChange={setInputQueue}
             />
           : <MemoryPanel
               slots={memorySlots}

@@ -30,6 +30,7 @@ class HymnStepRequest(BaseModel):
     memory: list[int]   # full 32-byte snapshot
     pc: int
     ac: int
+    io_input: int = 0   # value supplied by READ pseudo-op
 
 class RiscvAssembleRequest(BaseModel):
     source: str
@@ -156,7 +157,7 @@ def hymn_step(req: HymnStepRequest):
     (the backend is stateless), runs one step, and returns updated registers,
     memory, halt status, and any console output.
     """
-    machine = MachineState(input_fn=lambda: 0, output_fn=lambda v: None)
+    machine = MachineState(input_fn=lambda: req.io_input, output_fn=lambda v: None)
     if len(req.memory) != 32:
         raise HTTPException(status_code=400, detail="Memory must be exactly 32 bytes")
     try:
