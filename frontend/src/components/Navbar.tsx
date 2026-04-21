@@ -1,6 +1,10 @@
 import React from 'react'
 import { ISAMode } from '../types'
 import logo from '../assets/logo.svg'
+import backwards from '../assets/backwards.svg'
+import forward from '../assets/forward.svg'
+import play from '../assets/play.svg'
+import reset from '../assets/reset.svg'
 
 /** Props for the Navbar component. */
 interface NavbarProps {
@@ -61,12 +65,20 @@ const Navbar: React.FC<NavbarProps> = ({
         </button>
       </div>
 
-      {/* Playback controls: back, play, step, reset */}
+      {/* Playback controls: back, play, step, reset (SVG icons) */}
       <div className="top-controls">
-        <button className="ctrl-btn" onClick={onBack}  title="Step Back">&#9665;</button>
-        <button className="ctrl-btn" onClick={onPlay}  title="Play">&#9655;</button>
-        <button className="ctrl-btn" onClick={onStep}  title="Step Forward">&#9655;&#9655;</button>
-        <button className="ctrl-btn" onClick={onReset} title="Reset">&#8635;</button>
+        <button className="ctrl-btn" onClick={onBack}  title="Step Back">
+          <img src={backwards} alt="Step Back" height="24" />
+        </button>
+        <button className="ctrl-btn" onClick={onPlay}  title="Play">
+          <img src={play} alt="Play" height="24" />
+        </button>
+        <button className="ctrl-btn" onClick={onStep}  title="Step Forward">
+          <img src={forward} alt="Step Forward" height="24" />
+        </button>
+        <button className="ctrl-btn" onClick={onReset} title="Reset">
+          <img src={reset} alt="Reset" height="30" />
+        </button>
       </div>
 
       {/* Speed slider — range 0–1000 ms in 50 ms increments; label shows current value */}

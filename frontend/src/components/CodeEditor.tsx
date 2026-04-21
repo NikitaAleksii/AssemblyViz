@@ -85,70 +85,103 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   }
 
   return (
-    <section className="left-panel">
-      <div className="panel-header">
-        <h2>CODE EDITOR</h2>
-        <div className="editor-actions">
-          {/*
-           * Hidden file input — clicking it directly via a ref lets the visible
-           * IMPORT button trigger the OS file picker without exposing the default
-           * file-input styling.
-           */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".asm,.txt,.s,.hymn"
-            style={{ display: 'none' }}
-            onChange={handleImport}
-          />
-          <button onClick={() => fileInputRef.current?.click()}>IMPORT</button>
-          <button onClick={onExport}>EXPORT</button>
-          <button className="primary" onClick={onAssemble}>ASSEMBLE</button>
+    <section className="left-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div className="panel-header">
+          <h2>CODE EDITOR</h2>
+          <div className="editor-actions">
+            {/* Hidden file input — clicking it directly via a ref lets the visible IMPORT button trigger the OS file picker without exposing the default file-input styling. */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".asm,.txt,.s,.hymn"
+              style={{ display: 'none' }}
+              onChange={handleImport}
+            />
+            <button onClick={() => fileInputRef.current?.click()}>IMPORT</button>
+            <button onClick={onExport}>EXPORT</button>
+            <button className="primary" onClick={onAssemble}>ASSEMBLE</button>
+          </div>
         </div>
-      </div>
 
-      {/* Editor area: gutter + textarea side-by-side */}
-      <div className="editor-box">
-        {/* Line-number gutter — scroll position is driven by syncScroll, not the user */}
-        <div ref={lineNumbersRef} className="line-numbers">
-          {lineNumbers.map(n => <span key={n}>{n}</span>)}
-        </div>
-        <textarea
-          value={code}
-          onChange={e => onCodeChange(e.target.value)}
-          onScroll={syncScroll}
-          placeholder={`Write ${isaMode} code here...`}
-          spellCheck={false}
-        />
-      </div>
-
-      {/* Input queue: shown only for HYMN, consumed by READ pseudo-op */}
-      {isaMode === 'HYMN' && (
-        <div className="input-section">
-          <h3>INPUT</h3>
+        {/* Editor area: gutter + textarea side-by-side */}
+        <div className="editor-box" style={{ flex: 1, minHeight: 0 }}>
+          <div ref={lineNumbersRef} className="line-numbers">
+            {lineNumbers.map(n => <span key={n}>{n}</span>)}
+          </div>
           <textarea
-            className="input-box"
-            value={inputQueueText}
-            onChange={handleInputChange}
-            placeholder={"One integer per line...\n(consumed by READ)"}
+            value={code}
+            onChange={e => onCodeChange(e.target.value)}
+            onScroll={syncScroll}
+            placeholder={`Write ${isaMode} code here...`}
             spellCheck={false}
+            style={{ resize: 'none' }}
           />
         </div>
-      )}
 
-      {/* Output section: IO console on top, assembler/step status line below */}
-      <div className="output-section">
-        <h3>OUTPUT</h3>
-        <div className="output-box">
-          {/* Show a placeholder when the program has produced no console output yet */}
-          {consoleOutput || <span className="output-placeholder">No output yet...</span>}
-        </div>
-        {/* Status line only renders when there is a message to show */}
-        {output && (
-          <div className="status-line" style={{ color: isError ? '#c62828' : '#888' }}>
-            {output}
+        {/* Input queue: shown only for HYMN, consumed by READ pseudo-op */}
+        {isaMode === 'HYMN' && (
+          <div className="input-section">
+            <h3>INPUT</h3>
+            <textarea
+              className="input-box"
+              value={inputQueueText}
+              onChange={handleInputChange}
+              placeholder={"One integer per line...\n(consumed by READ)"}
+              spellCheck={false}
+            />
           </div>
         )}
+      </div>
+
+      {/* Draggable divider above output */}
+      <div
+        style={{
+          height: '6px',
+          cursor: 'ns-resize',
+          background: 'transparent',
+          borderTop: '2px solid #e5e5e5',
+          flexShrink: 0,
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault()
+          const startY = e.clientY
+          const output = document.getElementById('output-section') as HTMLElement
+          const startHeight = output?.offsetHeight || 120
+          const onMove = (moveEvent: MouseEvent) => {
+            const delta = startY - moveEvent.clientY
+            const newHeight = Math.min(400, Math.max(60, startHeight + delta))
+            if (output) output.style.height = `${newHeight}px`
+          }
+          const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+          }
+          window.addEventListener('mousemove', onMove)
+          window.addEventListener('mouseup', onUp)
+        }}
+      />
+
+      {/* Output section at the bottom, vertically resizable */}
+      <div
+        id="output-section"
+        className="output-section"
+        style={{
+          height: '120px',
+          overflow: 'auto',
+          padding: '8px 14px 10px',
+          flexShrink: 0,
+        }}
+      >
+        <h3>OUTPUT</h3>
+        <div className="output-box">
+          {consoleOutput || <span className="output-placeholder">No output yet...</span>}
+          {output && (
+            <div className="status-line" style={{ color: isError ? '#c62828' : '#888' }}>
+              {output}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )
