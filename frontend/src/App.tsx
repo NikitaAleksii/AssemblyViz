@@ -73,6 +73,7 @@ interface StepResult {
 
 function App() {
   // ── Editor / UI state ─────────────────────────────────────────
+  const [leftWidth, setLeftWidth] = useState(360)
   const [code, setCode]             = useState('')
   const [output, setOutput]         = useState('')
   const [isError, setIsError]       = useState(false)
@@ -486,31 +487,57 @@ function App() {
         onStep={handleStep}       onReset={handleReset}
       />
       <main className="main-layout">
-        {activeTab === 'editor'
-          ? <CodeEditor
-              code={code}               output={output}
-              isError={isError}         isaMode={isaMode}
-              consoleOutput={consoleOutput}
-              onCodeChange={setCode}    onAssemble={handleAssemble}
-              onExport={handleExport}
-              inputQueue={inputQueue}
-              onInputQueueChange={setInputQueue}
-            />
-          : <MemoryPanel
-              slots={memorySlots}
-              displayFormat={memoryFormat}
-              onFormatChange={setMemFmt}
-            />
-        }
-        <ResultsPanel
-          instructions={assembled}
-          onExportResults={handleExportResults}
+        <div style={{ width: leftWidth, minWidth: 300, maxWidth: 600, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+          {activeTab === 'editor'
+            ? <CodeEditor
+                code={code}               output={output}
+                isError={isError}         isaMode={isaMode}
+                consoleOutput={consoleOutput}
+                onCodeChange={setCode}    onAssemble={handleAssemble}
+                onExport={handleExport}
+                inputQueue={inputQueue}
+                onInputQueueChange={setInputQueue}
+              />
+            : <MemoryPanel
+                slots={memorySlots}
+                displayFormat={memoryFormat}
+                onFormatChange={setMemFmt}
+              />
+          }
+        </div>
+
+        <div
+          style={{ width: '5px', cursor: 'ew-resize', flexShrink: 0, background: '#e5e5e5' }}
+          onMouseDown={(e) => {
+            e.preventDefault()
+            const startX = e.clientX
+            const startWidth = leftWidth
+            const onMove = (mv: MouseEvent) => {
+              const newWidth = Math.min(600, Math.max(300, startWidth + mv.clientX - startX))
+              setLeftWidth(newWidth)
+            }
+            const onUp = () => {
+              window.removeEventListener('mousemove', onMove)
+              window.removeEventListener('mouseup', onUp)
+            }
+            window.addEventListener('mousemove', onMove)
+            window.addEventListener('mouseup', onUp)
+          }}
         />
-        <RegisterPanel
-          registers={registers}
-          displayFormat={registerFormat}
-          onFormatChange={setRegFmt}
-        />
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <ResultsPanel
+            instructions={assembled}
+            onExportResults={handleExportResults}
+          />
+        </div>
+        <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <RegisterPanel
+            registers={registers}
+            displayFormat={registerFormat}
+            onFormatChange={setRegFmt}
+          />
+        </div>
       </main>
     </div>
   )
