@@ -35,15 +35,27 @@ AssemblyViz/
 │       ├── memory.py
 │       ├── registers.py
 │       └── simulation.py
-└── frontend/               # Web interface
-```
- 
+└── frontend/
+    ├── src/
+    │   ├── assets/          # SVG icons and logo
+    │   ├── components/
+    │   │   ├── Navbar.tsx       # Top bar with playback controls and ISA toggle
+    │   │   ├── CodeEditor.tsx   # Assembly source editor with input/output
+    │   │   ├── ResultsPanel.tsx # Assembled instruction listing
+    │   │   ├── MemoryPanel.tsx  # Memory state viewer
+    │   │   └── RegisterPanel.tsx # Register state viewer
+    │   ├── types/
+    │   │   └── index.ts         # Shared TypeScript interfaces
+    │   ├── App.tsx              # Root component — owns all simulation state
+    │   └── main.tsx             # React entry point
 ---
  
 ## Requirements
  
 - Python 3.10 or higher
 - No external dependencies - uses the standard library only
+- Node.js 18 or higher
+- npm
  
 ---
  
