@@ -4,46 +4,46 @@ Python backend for a RISC-V assembly visualizer. Handles assembling RV32I source
 
 ---
 
-## RISC-V Implementation Structure
+## Structure
 
-```
+```text
 riscv/
 ├── tests/
 │   ├── __init__.py
-│   ├── assembler_test.py   # Unit tests for the assembler
-│   ├── decoder_test.py     # Unit tests for the decoder
-│   └── memory_test.py      # Unit tests for the memory
-│   ├── parser_test.py      # Unit tests for the parser
-│   └── simulation_test.py  # Tests for the simulation
-│   └── merge_sort.S        # Merge sort implemented in RISC-V and used for the simulation
+│   ├── assembler_test.py
+│   ├── decoder_test.py
+│   ├── memory_test.py
+│   ├── merge_sort.S
+│   ├── parser_test.py
+│   └── simulation_test.py
 ├── __init__.py
-├── isa.py                  # RV32I instruction set definitions (opcodes, formats, register names)
-├── parser.py               # Two-pass parser — validates 
-├── assembler.py            # Assembles RV32I source text - list of 32-bit machine code words
-├── decoder.py              # Decodes machine code words - structured instruction objects
-├── memory.py               # Byte-addressable memory model
-├── registers.py            # x0–x31 register file
-└── simulator.py            # Step-through execution engine
+├── isa.py
+├── parser.py
+├── assembler.py
+├── decoder.py
+├── memory.py
+├── registers.py
+└── simulation.py
 ```
 
 ---
 
 ## Module Descriptions
- 
+
 **isa.py** — Single source of truth for all ISA constants: opcodes, instruction type sets (`R_TYPE`, `I_TYPE`, etc.), register names, directives, and the mnemonic lookup table used by the decoder.
- 
+
 **parser.py** — Two-pass parser that takes raw assembly source and produces a list of `ParsedLine` objects. First pass builds the symbol table; second pass validates mnemonics, operands, and label references using regex.
- 
+
 **assembler.py** — Takes the `ParsedLine` list and symbol table from the parser and encodes each instruction into a 32-bit machine word. Handles pseudo-instruction expansion and PC-relative offset calculation.
- 
+
 **decoder.py** — Takes a 32-bit machine word and splits it into its constituent fields (opcode, rd, rs1, rs2, funct3, funct7, immediate). Used by the simulator to execute each fetched instruction.
- 
-**memory.py** — Word-addressable memory model. Supports partial writes via a 4-bit byte mask, enabling byte and halfword stores. All addresses must be word-aligned.
- 
+
+**memory.py** — Byte-addressable memory model. Supports partial writes via a 4-bit byte mask, enabling byte and halfword stores. All addresses must be word-aligned.
+
 **registers.py** — Models the 32 RISC-V general-purpose registers. x0 is hardwired to zero — writes are ignored and reads always return 0.
- 
+
 **simulation.py** — Ties everything together. Loads and assembles source, then runs the fetch-decode-execute cycle one instruction at a time via `step()`.
- 
+
 ---
 
 ## Requirements
@@ -55,17 +55,17 @@ riscv/
 
 ## Supported Instructions
 
-The assembler currently supports the full **RV32I base integer instruction set**:
+The assembler supports the full **RV32I base integer instruction set**:
 
 | Format | Instructions |
-|--------|-------------|
+| --- | --- |
 | R-type | `add` `sub` `and` `or` `xor` `sll` `srl` `sra` `slt` `sltu` |
 | I-type | `addi` `andi` `ori` `xori` `slti` `sltiu` `slli` `srli` `srai` |
-| Load   | `lw` `lh` `lb` `lhu` `lbu` |
-| Store  | `sw` `sh` `sb` |
+| Load | `lw` `lh` `lb` `lhu` `lbu` |
+| Store | `sw` `sh` `sb` |
 | Branch | `beq` `bne` `blt` `bge` `bltu` `bgeu` |
 | U-type | `lui` `auipc` |
-| Jump   | `jal` `jalr` |
+| Jump | `jal` `jalr` |
 | System | `ecall` `ebreak` |
 
 ---
@@ -73,7 +73,7 @@ The assembler currently supports the full **RV32I base integer instruction set**
 ### Pseudo-instructions
 
 | Pseudo | Expands to |
-|--------|-----------|
+| --- | --- |
 | `li rd, imm` | `addi rd, x0, imm` (small) or `lui` + `addi` (large) |
 | `la rd, symbol` | `lui rd, %hi(addr)` + `addi rd, rd, %lo(addr)` |
 | `mv rd, rs` | `addi rd, rs, 0` |
@@ -88,29 +88,36 @@ The assembler currently supports the full **RV32I base integer instruction set**
 Set `a7` to the syscall number before `ecall`:
 
 | a7 | Operation |
-|----|-----------|
-| 1  | Print integer in `a0` — simulation continues |
-| 4  | Print string at address in `a0` — simulation continues |
+| --- | --- |
+| 1 | Print integer in `a0` — simulation continues |
+| 4 | Print string at address in `a0` — simulation continues |
 | 10 | Exit — simulation halts |
 
 Any other syscall number also halts the simulation.
 
 ---
 
-## Running the Simulator
+## Running the Tests
 
-Run the command from ./backend folder
-``` 
-cd backend/
-```
-```
+From the `backend/` directory:
+
+```bash
 python3 -m riscv.tests.simulation_test
 ```
 
-### Simulation API
+Or run all tests with pytest:
+
+```bash
+cd backend/
+pytest riscv/tests/
+```
+
+---
+
+## Simulation API
 
 | Method | Description |
-|--------|-------------|
+| --- | --- |
 | `Simulation(memory_depth=4096)` | Create a new simulation with `memory_depth` bytes of memory |
 | `sim.load(source)` | Parse and assemble source, write to memory, reset PC, set `sp` to top of memory |
 | `sim.step()` | Execute one instruction and return a snapshot |
@@ -139,7 +146,7 @@ python3 -m riscv.tests.simulation_test
 
 When a program with a `.data` section is loaded, the simulator lays it out as:
 
-```
+```text
 Address 0x0000  ┌─────────────────┐
                 │   .text         │  instructions
                 ├─────────────────┤

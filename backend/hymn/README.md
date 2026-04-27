@@ -6,41 +6,49 @@ HYMN is an 8-bit assembly language simulator. It models a CPU with 32 bytes of m
 
 ### Registers
 
-| **PC** (Program Counter) ->  Points to the next instruction in memory 
-| **AC** (Accumulator) ->  General-purpose register where all math happens 
-| **IR** (Instruction Register) ->  Holds the raw instruction word just fetched from memory 
+| Register | Description |
+| --- | --- |
+| **PC** (Program Counter) | Points to the next instruction in memory |
+| **AC** (Accumulator) | General-purpose register where all arithmetic happens |
+| **IR** (Instruction Register) | Holds the raw instruction word just fetched from memory |
 
 ### Instruction Encoding
 
 Each instruction is a single 8-bit word:
 
-```
+```text
 [opcode (3 bits) | address (5 bits)]
  bits 7-5          bits 4-0
 ```
 
-- 3-bit opcode: 8 possible instructions (0-7)
-- 5-bit address: 32 possible memory addresses (0-31)
+- 3-bit opcode: 8 possible instructions (0–7)
+- 5-bit address: 32 possible memory addresses (0–31)
 
 ### Instruction Set
 
 | Mnemonic | Opcode | Operand | Effect |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `HALT` | `000` | none | Stop the machine |
 | `JUMP` | `001` | address | PC = address |
 | `JZER` | `010` | address | PC = address if AC == 0, else PC += 1 |
 | `JPOS` | `011` | address | PC = address if AC > 0, else PC += 1 |
 | `LOAD` | `100` | address | AC = memory[address]; PC += 1 |
 | `STOR` | `101` | address | memory[address] = AC; PC += 1 |
-| `ADD`  | `110` | address | AC = AC + memory[address]; PC += 1 |
-| `SUB`  | `111` | address | AC = AC - memory[address]; PC += 1 |
+| `ADD` | `110` | address | AC = AC + memory[address]; PC += 1 |
+| `SUB` | `111` | address | AC = AC - memory[address]; PC += 1 |
 
+## Pseudo-ops
 
-## puseudo ops
-In addition to the eight instructions listed above, the Hymn architecture supports two further “pseudo-ops”: READ and WRITE. As their names suggest, these
-instructions read from and write to the I/O console, respectively.
+In addition to the eight instructions above, HYMN supports two pseudo-ops:
 
-## py files:
+| Pseudo-op | Effect |
+| --- | --- |
+| `READ` | Read an integer from the I/O console into AC |
+| `WRITE` | Write AC to the I/O console |
+
+These are encoded as `LOAD 30` and `STOR 31` respectively and are handled by the machine at runtime.
+
+## Python Files
 
 ### `instructions.py`
 
@@ -48,9 +56,9 @@ Defines the `InstructionDef` data structure and the `INSTRUCTIONS` / `INSTRUCTIO
 
 ### `parser.py`
 
-Two-pass parser that tockenizes HYMN assembly source text into a list of 8-bit machine words.
+Two-pass parser that tokenizes HYMN assembly source text into a list of 8-bit machine words.
 
-- **First pass**: builds a symbol table mapping labels (e.g. `LOOP: or FLAG:`) to memory addresses.
+- **First pass**: builds a symbol table mapping labels (e.g. `LOOP:` or `FLAG:`) to memory addresses.
 - **Second pass**: encodes each instruction, resolving label references via the symbol table.
 
 Supports comments (`;`), labels on their own line or inline with instructions, and case-insensitive mnemonics. Parse errors are collected and accessible via the `errors` property.
@@ -61,7 +69,7 @@ The `MachineState` class simulating the HYMN CPU. Manages the three registers, 3
 
 ### `executor.py`
 
-High-level wrapper around `MachineState`. Provides `load()`, `step()`, `run()`, and `reset()` to link with front end environment.
+High-level wrapper around `MachineState`. Provides `load()`, `step()`, `run()`, and `reset()` to link with the front-end environment.
 
 ### `debugger.py`
 
@@ -101,11 +109,11 @@ state = dbg.step()             # execute STOR
 
 Tests are in the `tests/` directory, one file per module:
 
-- `test_instructions.py` - registry completeness, opcode ranges, immutability
-- `test_parser.py` - tokenization, label resolution, encoding, full integration
-- `test_machine.py` - all instructions, register behavior, memory, encode/decode
-- `test_executor.py` - load, step, run, reset, state inspection
-- `test_debugger.py` - breakpoint management, step, run_until_break
+- `test_instructions.py` — registry completeness, opcode ranges, immutability
+- `test_parser.py` — tokenization, label resolution, encoding, full integration
+- `test_machine.py` — all instructions, register behavior, memory, encode/decode
+- `test_executor.py` — load, step, run, reset, state inspection
+- `test_debugger.py` — breakpoint management, step, run_until_break
 
 Run them with:
 
@@ -113,25 +121,16 @@ Run them with:
 cd backend/hymn
 pytest
 ```
-# Manual Testing
 
-Along with pytests, assembly programs from previous homework assignments were run in our implementation of HYMN and compared to the actual SimHYMN json.
+## Manual Testing
 
-programs used:
+Along with pytest, assembly programs from previous homework assignments were run through this implementation and compared to the SimHYMN reference.
 
-- `Sumn` - takes in an input number n and returns the sum of 0 - n
-- `mult` - multiplies two input numbers together
-- `primes`- prints first 12 prime numbers
-- `virus` - copies its own code into memory
+Programs used:
 
-Each program is first run in the simHYMN json file to record:
+- `sumn` — takes an input number n and returns the sum of 0 through n
+- `mult` — multiplies two input numbers
+- `primes` — prints the first 12 prime numbers
+- `virus` — copies its own code into memory
 
-- The final AC value
-- The final memory contents                                                              
-- I/O output                                         
-- The PC value when it halted   
-
-The same programs are run through this repo implementation through a python shell
-
--same final values were recorded to ensure each file acted according to the hymn simulation
-
+Each program was first run in the SimHYMN reference to record the final AC value, final memory contents, I/O output, and PC value at halt. The same programs were then run through this implementation and the outputs were compared to verify correctness.
