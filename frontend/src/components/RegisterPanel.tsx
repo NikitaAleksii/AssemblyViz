@@ -1,6 +1,17 @@
 import React from 'react'
 import { Register, DisplayFormat } from '../types'
 
+const HYMN_OPCODES: Record<number, string> = {
+  0: 'HALT', 1: 'JUMP', 2: 'JZER', 3: 'JPOS',
+  4: 'LOAD', 5: 'STOR', 6: 'ADD',  7: 'SUB',
+}
+
+function decodeIR(value: number): string {
+  const opcode = (value >> 5) & 0b111
+  const address = value & 0b11111
+  return `${HYMN_OPCODES[opcode] ?? '???'} ${address.toString(2).padStart(5, '0')}`
+}
+
 /** Props for the RegisterPanel component. */
 interface RegisterPanelProps {
   /** List of registers to display (3 for HYMN, 32 for RISC-V). */
@@ -46,7 +57,7 @@ const RegisterPanel: React.FC<RegisterPanelProps> = ({
   return (
     <section className="right-panel">
       <div className="panel-header">
-        <h2>REGISTER</h2>
+        <h2>REGISTERS</h2>
 
         {/* Format selector — INSTRUCTION is not applicable to registers, so only
             HEXADECIMAL and DECIMAL are offered here (unlike the MemoryPanel). */}
@@ -78,7 +89,8 @@ const RegisterPanel: React.FC<RegisterPanelProps> = ({
               <span>{reg.name}</span>
               {/* Register number — prefixed with "x" for RISC-V (x0–x31) */}
               <span>{isLarge ? `x${reg.number}` : reg.number}</span>
-              <span>{formatValue(reg, displayFormat)}</span>
+              <span>{(reg.name == 'IR' && !isLarge) ? decodeIR(reg.value as number) :
+                     formatValue(reg, displayFormat)}</span>
             </div>
           ))}
         </div>

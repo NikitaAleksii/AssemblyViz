@@ -531,7 +531,7 @@ function App() {
             onExportResults={handleExportResults}
           />
         </div>
-        <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
           <RegisterPanel
             registers={registers}
             displayFormat={registerFormat}
