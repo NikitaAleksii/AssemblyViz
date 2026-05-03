@@ -12,6 +12,15 @@ HYMN is an 8-bit assembly language simulator. It models a CPU with 32 bytes of m
 | **AC** (Accumulator) | General-purpose register where all arithmetic happens |
 | **IR** (Instruction Register) | Holds the raw instruction word just fetched from memory |
 
+### Status Flags
+
+Two read-only flags are derived from the AC value after every instruction and included in every snapshot:
+
+| Flag | True when |
+| --- | --- |
+| **Zero Flag** | AC == 0 |
+| **Positive Flag** | AC > 0 |
+
 ### Instruction Encoding
 
 Each instruction is a single 8-bit word:
@@ -65,7 +74,7 @@ Supports comments (`;`), labels on their own line or inline with instructions, a
 
 ### `machine.py`
 
-The `MachineState` class simulating the HYMN CPU. Manages the three registers, 32 bytes of memory, and the fetch-decode-execute cycle. Provides `step()` for single-instruction execution, `run()` to execute until halt, and `snapshot()` for JSON-serializable state dumps.
+The `MachineState` class simulating the HYMN CPU. Manages the three registers, 32 bytes of memory, and the fetch-decode-execute cycle. Provides `step()` for single-instruction execution, `run()` to execute until halt, and `snapshot()` for JSON-serializable state dumps. Snapshots include `zero_flag` and `positive_flag` derived from AC.
 
 ### `executor.py`
 

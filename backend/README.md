@@ -23,7 +23,7 @@ See [hymn/README.md](hymn/README.md) and [riscv/README.md](riscv/README.md) for 
 Python 3.10+ is required. Install dependencies:
 
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
 ```
 
 Start the server from the `backend/` directory:
@@ -32,7 +32,7 @@ Start the server from the `backend/` directory:
 uvicorn main:app --reload
 ```
 
-The server runs on `http://localhost:8000`. CORS is configured to allow requests from the Vite dev server at `http://localhost:5173`.
+The server runs on `http://localhost:8000`. CORS origins are configured via the `ALLOWED_ORIGINS` environment variable (comma-separated list). Defaults to `http://localhost:5173` when the variable is not set.
 
 ---
 
@@ -59,7 +59,7 @@ Parse and assemble HYMN source code.
   "words":        [138, ...],
   "instructions": [{"address": "00000", "code": "10001010", "instruction": "LOAD 10"}, ...],
   "memory":       [{"address": "00000", "value": 138, "decoded": "LOAD 10"}, ...],
-  "registers":    {"pc": 0, "ac": 0, "ir": 0, "halted": false}
+  "registers":    {"pc": 0, "ac": 0, "ir": 0, "zero_flag": "false", "positive_flag": "false", "halted": false}
 }
 ```
 
@@ -88,12 +88,14 @@ Execute one HYMN instruction. The frontend sends the full current machine state;
 
 ```json
 {
-  "pc":        1,
-  "ac":        0,
-  "ir":        138,
-  "halted":    false,
-  "memory":    [{"address": "00000", "value": 138, "decoded": "LOAD 10"}, ...],
-  "io_output": ""
+  "pc":            1,
+  "ac":            0,
+  "ir":            138,
+  "zero_flag":     "false",
+  "positive_flag": "false",
+  "halted":        false,
+  "memory":        [{"address": "00000", "value": 138, "decoded": "LOAD 10"}, ...],
+  "io_output":     ""
 }
 ```
 

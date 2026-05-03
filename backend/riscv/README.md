@@ -83,7 +83,7 @@ The assembler supports the full **RV32I base integer instruction set**:
 
 ---
 
-## Syscall Convention (MARS/RISC-V)
+## Syscall Convention
 
 Set `a7` to the syscall number before `ecall`:
 
