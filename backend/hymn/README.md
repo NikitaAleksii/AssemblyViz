@@ -12,6 +12,15 @@ HYMN is an 8-bit assembly language simulator. It models a CPU with 32 bytes of m
 | **AC** (Accumulator) | General-purpose register where all arithmetic happens |
 | **IR** (Instruction Register) | Holds the raw instruction word just fetched from memory |
 
+### Status Flags
+
+Two read-only flags are derived from the AC value after every instruction and included in every snapshot:
+
+| Flag | True when |
+| --- | --- |
+| **Zero Flag** | AC == 0 |
+| **Positive Flag** | AC > 0 |
+
 ### Instruction Encoding
 
 Each instruction is a single 8-bit word:
@@ -65,7 +74,7 @@ Supports comments (`;`), labels on their own line or inline with instructions, a
 
 ### `machine.py`
 
-The `MachineState` class simulating the HYMN CPU. Manages the three registers, 32 bytes of memory, and the fetch-decode-execute cycle. Provides `step()` for single-instruction execution, `run()` to execute until halt, and `snapshot()` for JSON-serializable state dumps.
+The `MachineState` class simulating the HYMN CPU. Manages the three registers, 32 bytes of memory, and the fetch-decode-execute cycle. Provides `step()` for single-instruction execution, `run()` to execute until halt, and `snapshot()` for JSON-serializable state dumps. Snapshots include `zero_flag` and `positive_flag` derived from AC.
 
 ### `executor.py`
 
@@ -104,33 +113,3 @@ dbg.add_breakpoint(2)          # pause before STOR
 state = dbg.run_until_break()  # stops at address 2
 state = dbg.step()             # execute STOR
 ```
-
-## Tests
-
-Tests are in the `tests/` directory, one file per module:
-
-- `test_instructions.py` — registry completeness, opcode ranges, immutability
-- `test_parser.py` — tokenization, label resolution, encoding, full integration
-- `test_machine.py` — all instructions, register behavior, memory, encode/decode
-- `test_executor.py` — load, step, run, reset, state inspection
-- `test_debugger.py` — breakpoint management, step, run_until_break
-
-Run them with:
-
-```bash
-cd backend/hymn
-pytest
-```
-
-## Manual Testing
-
-Along with pytest, assembly programs from previous homework assignments were run through this implementation and compared to the SimHYMN reference.
-
-Programs used:
-
-- `sumn` — takes an input number n and returns the sum of 0 through n
-- `mult` — multiplies two input numbers
-- `primes` — prints the first 12 prime numbers
-- `virus` — copies its own code into memory
-
-Each program was first run in the SimHYMN reference to record the final AC value, final memory contents, I/O output, and PC value at halt. The same programs were then run through this implementation and the outputs were compared to verify correctness.

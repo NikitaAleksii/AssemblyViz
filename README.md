@@ -64,6 +64,7 @@ AssemblyViz/
         │   └── reset.svg
         ├── components/
         │   ├── CodeEditor.tsx    # Assembly source editor, input queue, import/export
+        │   ├── ErrorBoundary.tsx # React error boundary wrapping the app
         │   ├── MemoryPanel.tsx   # Memory state viewer
         │   ├── Navbar.tsx        # Top bar with playback controls and ISA toggle
         │   ├── RegisterPanel.tsx # Register state viewer
@@ -92,7 +93,7 @@ AssemblyViz/
 **Backend** (from the `backend/` directory):
 
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
@@ -113,7 +114,7 @@ Runs on `http://localhost:5173`. API calls are proxied to the backend.
 
 ### HYMN
 
-HYMN is a minimal 8-bit CPU designed for teaching. It has 3 registers (PC, AC, IR), 32 bytes of memory, and 8 instructions encoded in a single byte each. Programs are assembled from a simple mnemonic language and executed instruction by instruction. Also supports two pseudo-ops: `READ` (read an integer from the I/O console) and `WRITE` (write AC to the console).
+HYMN is a minimal 8-bit CPU designed for teaching. It has 3 registers (PC, AC, IR) plus Zero Flag and Positive Flag status indicators derived from AC, 32 bytes of memory, and 8 instructions encoded in a single byte each. Programs are assembled from a simple mnemonic language and executed instruction by instruction. Also supports two pseudo-ops: `READ` (read an integer from the I/O console) and `WRITE` (write AC to the console).
 
 See [`backend/hymn/README.md`](backend/hymn/README.md) for the full instruction set, architecture details, and usage examples.
 

@@ -31,9 +31,9 @@ class Simulation:
         
         if len(self._errors) > 0:
             for error in self._errors:
-                print(f"{error.line_number} {error.line_text} {error.message}") 
+                print(f"{error.line_number} {error.line_text} {error.message}")
             return
-        
+
         self._symbol_table = parser._symbol_table
         assembler = Assembler()
         words = assembler.assemble(parsed_lines, self._symbol_table)
@@ -50,7 +50,7 @@ class Simulation:
 
         if len(self._errors) > 0:
             for error in self._errors:
-                print(f"{error.line_number} {error.line_text} {error.message}") 
+                print(f"{error.line_number} {error.line_text} {error.message}")
             self.halted = True
             return
 

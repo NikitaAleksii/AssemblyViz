@@ -45,6 +45,7 @@ src/
     reset.svg         # Reset button icon
   components/
     CodeEditor.tsx      # Left panel: editor, input queue, assemble button, output bar
+    ErrorBoundary.tsx   # React error boundary wrapping the app shell
     MemoryPanel.tsx     # Left panel (Memory tab): memory slot table
     Navbar.tsx          # Top bar: tabs, playback controls, speed slider, ISA toggle
     RegisterPanel.tsx   # Right panel: register table

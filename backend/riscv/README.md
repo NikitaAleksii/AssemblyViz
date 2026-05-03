@@ -83,7 +83,7 @@ The assembler supports the full **RV32I base integer instruction set**:
 
 ---
 
-## Syscall Convention (MARS/RISC-V)
+## Syscall Convention
 
 Set `a7` to the syscall number before `ecall`:
 
@@ -94,23 +94,6 @@ Set `a7` to the syscall number before `ecall`:
 | 10 | Exit — simulation halts |
 
 Any other syscall number also halts the simulation.
-
----
-
-## Running the Tests
-
-From the `backend/` directory:
-
-```bash
-python3 -m riscv.tests.simulation_test
-```
-
-Or run all tests with pytest:
-
-```bash
-cd backend/
-pytest riscv/tests/
-```
 
 ---
 

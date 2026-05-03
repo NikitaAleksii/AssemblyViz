@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../backend"))
 
 from hymn.instructions import INSTRUCTIONS, INSTRUCTIONS_BY_OPCODE, InstructionDef, OperandType
 

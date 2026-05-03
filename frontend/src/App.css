@@ -23,7 +23,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 /* Tabs — gray pill background */
 .top-tabs {
   display: flex;
-  background: #f0f0f0;
+  background: #f5eded;
   border-radius: 8px;
   padding: 3px;
   gap: 2px;
@@ -35,14 +35,14 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   padding: 5px 14px;
   font-size: 13px;
   font-weight: 500;
-  color: #888;
+  color: #595959;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 }
 .tab.active {
   background: white;
-  color: #ef3b33;
+  color: #a32d2d;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
@@ -52,7 +52,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 .top-controls { display: flex; align-items: center; gap: 4px; margin: 0 auto; }
 .ctrl-btn {
   border: none; background: none;
-  color: #ef3b33; font-size: 17px;
+  color: #a32d2d; font-size: 17px;
   cursor: pointer; padding: 4px 7px; line-height: 1;
   transition: opacity 0.15s;
   flex-shrink: 0;
@@ -62,12 +62,12 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 /* Speed — smaller thumb, wider track */
 .speed-control { display: flex; align-items: center; gap: 8px; }
 .speed-control input[type=range] {
-  accent-color: #ef3b33;
+  accent-color: #a32d2d;
   width: 130px;
   height: 3px;
   cursor: pointer;
 }
-.speed-label { font-size: 12px; color: #888; min-width: 48px; }
+.speed-label { font-size: 12px; color: #595959; min-width: 48px; }
 
 /* ISA toggle — with padding */
 .mode-switch { display: flex; }
@@ -76,13 +76,13 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   background: white;
   padding: 6px 20px;
   font-size: 13px; font-weight: 700;
-  cursor: pointer; color: #aaa;
+  cursor: pointer; color: #767676;
   transition: all 0.15s;
   letter-spacing: 0.3px;
 }
 .mode:first-child { border-radius: 6px 0 0 6px; }
 .mode:last-child  { border-radius: 0 6px 6px 0; border-left: none; }
-.mode.active { background: #ef3b33; color: white; border-color: #ef3b33; }
+.mode.active { background: #a32d2d; color: white; border-color: #a32d2d; }
 
 /* ── Main layout ────────────────────────────────────────────── */
 .main-layout {
@@ -96,7 +96,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   border-right: 1px solid #e5e5e5;
   overflow: hidden; background: white;
 }
-.right-panel { border-right: none; }
+.right-panel { border-left: 1px solid #e5e5e5; height: 100%;}
 
 /* ── Panel header ───────────────────────────────────────────── */
 .panel-header {
@@ -106,35 +106,35 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   flex-shrink: 0;
 }
 .panel-header h2 {
-  color: #ef3b33; font-size: 11px; font-weight: 800;
+  color: #a32d2d; font-size: 11px; font-weight: 800;
   letter-spacing: 1px; text-transform: uppercase;
 }
 
 /* Editor buttons */
 .editor-actions { display: flex; gap: 5px; }
 .editor-actions button {
-  background: white; border: 1px solid #ccc; color: #555;
+  background: white; border: 1px solid #ccc; color: #595959;
   padding: 4px 10px; border-radius: 5px; cursor: pointer;
   font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
   transition: border-color 0.15s;
 }
 .editor-actions button:hover { border-color: #999; }
-.editor-actions button.primary { border-color: #ef3b33; color: #ef3b33; }
-.editor-actions button.primary:hover { background: #ef3b33; color: white; }
+.editor-actions button.primary { border-color: #a32d2d; color: #a32d2d; }
+.editor-actions button.primary:hover { background: #a32d2d; color: white; }
 
 /* Center panel export button */
 .center-panel .panel-header button {
-  background: white; border: 1px solid #ef3b33; color: #ef3b33;
+  background: white; border: 1px solid #a32d2d; color: #a32d2d;
   padding: 4px 10px; border-radius: 5px; cursor: pointer;
   font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
 }
-.center-panel .panel-header button:hover { background: #ef3b33; color: white; }
+.center-panel .panel-header button:hover { background: #a32d2d; color: white; }
 
 /* Format dropdowns */
 .format-select {
   border: 1px solid #ddd; background: white;
   padding: 3px 8px; border-radius: 5px;
-  font-size: 11px; font-weight: 600; cursor: pointer; color: #555;
+  font-size: 11px; font-weight: 600; cursor: pointer; color: #595959;
 }
 
 /* ── Code editor ────────────────────────────────────────────── */
@@ -144,8 +144,8 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   border-bottom: 1px solid #e5e5e5;
 }
 .line-numbers {
-  background: #f8f8f8; border-right: 1px solid #e5e5e5;
-  color: #ccc; padding: 12px 6px;
+  background: #fff8f8; border-right: 1px solid #e5e5e5;
+  color: #767676; padding: 12px 6px;
   font-family: 'JetBrains Mono', monospace; font-size: 13px;
   line-height: 1.65; text-align: right; user-select: none; overflow: hidden;
 }
@@ -163,7 +163,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 .output-section { flex-shrink: 0; }
 .output-section h3 {
   font-size: 11px; font-weight: 800; letter-spacing: 1px;
-  text-transform: uppercase; color: #ef3b33; margin-bottom: 6px;
+  text-transform: uppercase; color: #a32d2d; margin-bottom: 6px;
 }
 .output-box {
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
@@ -172,7 +172,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 .output-placeholder { color: #999; }
 .status-line {
   font-family: 'JetBrains Mono', monospace; font-size: 10px;
-  margin-top: 5px; color: #888;
+  margin-top: 5px; color: #595959;
 }
 
 /* ── Memory panel ───────────────────────────────────────────── */
@@ -180,7 +180,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 .memory-header {
   display: grid; grid-template-columns: 90px 1fr;
   padding: 7px 14px; font-size: 10px; font-weight: 700;
-  letter-spacing: 1px; color: #aaa; border-bottom: 1px solid #e5e5e5;
+  letter-spacing: 1px; color: #767676; border-bottom: 1px solid #e5e5e5;
   text-transform: uppercase; flex-shrink: 0;
 }
 .memory-body { overflow-y: auto; flex: 1; }
@@ -189,14 +189,14 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   padding: 6px 14px; border-bottom: 1px solid #f2f2f2;
   font-family: 'JetBrains Mono', monospace; font-size: 12px;
 }
-.memory-row.active-row  { background: #f0fff8; border-left: 3px solid #2ecc71; }
+.memory-row.active-row  { background: #fff5f5; border-left: 3px solid #a32d2d; }
 @keyframes memory-flash {
-  0%   { background: #fff9c4; }
-  25%  { background: #ffe082; }
+  0%   { background: #ffd6d6; }
+  25%  { background: #ffbcbc; }
   100% { background: transparent; }
 }
 .memory-row.changed-row { animation: memory-flash 1.4s ease-out; }
-.memory-address { color: #555; }
+.memory-address { color: #595959; }
 .memory-instruction { color: #333; }
 
 /* ── Results panel ──────────────────────────────────────────── */
@@ -204,7 +204,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 .results-header {
   display: grid; grid-template-columns: 130px 120px 1fr;
   padding: 7px 14px; font-size: 10px; font-weight: 700;
-  letter-spacing: 1px; color: #aaa; border-bottom: 1px solid #e5e5e5;
+  letter-spacing: 1px; color: #767676; border-bottom: 1px solid #e5e5e5;
   text-transform: uppercase; flex-shrink: 0;
 }
 .results-body { overflow-y: auto; flex: 1; }
@@ -214,14 +214,14 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
   font-family: 'JetBrains Mono', monospace; font-size: 12px;
 }
 .results-row:hover { background: #fafafa; }
-.results-row.active-row { background: #f0fff8; border-left: 3px solid #2ecc71; }
+.results-row.active-row { background: #fff5f5; border-left: 3px solid #a32d2d; }
 
 /* ── Register panel ─────────────────────────────────────────── */
 .register-box { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
 .register-header {
   display: grid; grid-template-columns: 1fr 1fr 1fr;
   padding: 7px 14px; font-size: 10px; font-weight: 700;
-  letter-spacing: 1px; color: #aaa; border-bottom: 1px solid #e5e5e5;
+  letter-spacing: 1px; color: #767676; border-bottom: 1px solid #e5e5e5;
   text-transform: uppercase; flex-shrink: 0;
 }
 .register-body { overflow-y: auto; flex: 1; }
@@ -244,7 +244,7 @@ body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #222; }
 }
 .input-section h3 {
   font-size: 11px; font-weight: 800; letter-spacing: 1px;
-  text-transform: uppercase; color: #ef3b33; margin-bottom: 6px;
+  text-transform: uppercase; color: #a32d2d; margin-bottom: 6px;
 }
 .input-box {
   width: 100%; min-height: 60px; max-height: 100px; resize: none;

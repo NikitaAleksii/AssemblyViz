@@ -258,6 +258,8 @@ class MachineState:
             "pc":        self._pc,
             "ac":        self._ac,
             "ir":        self._ir,
+            "zero_flag": 'true' if self._ac == 0 else 'false',
+            "positive_flag": 'true' if self._ac > 0 else 'false',
             "halted":    self._halted,
             "memory":    list(self._memory),
             "io_output": list(self._io_output),
