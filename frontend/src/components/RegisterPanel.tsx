@@ -52,7 +52,7 @@ const RegisterPanel: React.FC<RegisterPanelProps> = ({
   registers, displayFormat, onFormatChange,
 }) => {
   // Use compact row styling when there are more than 3 registers (i.e. RISC-V).
-  const isLarge = registers.length > 3
+  const isLarge = registers.length > 5
 
   return (
     <section className="right-panel">

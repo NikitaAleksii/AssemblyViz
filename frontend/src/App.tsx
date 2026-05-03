@@ -184,6 +184,8 @@ function App() {
           { name: 'PC', number: 0, value: data.registers.pc },
           { name: 'IR', number: 1, value: data.registers.ir },
           { name: 'AC', number: 2, value: data.registers.ac },
+          { name: 'Zero Flag', number: 3, value: data.registers.zero_flag },
+          { name: 'Positive Flag', number: 4, value: data.registers.positive_flag }
         ])
       } else {
         // RISC-V: memory panel mirrors the instruction list; registers come from the backend
@@ -274,6 +276,8 @@ function App() {
           { name: 'PC', number: 0, value: data.pc },
           { name: 'IR', number: 1, value: data.ir },
           { name: 'AC', number: 2, value: data.ac },
+          { name: 'Zero Flag', number: 3, value: data.zero_flag },
+          { name: 'Positive Flag', number: 4, value: data.positive_flag },
         ]
         const newMemSlots: MemorySlot[] = data.memory.map(
           (s: { address: string; decoded: string; value: number }, i: number) => ({
@@ -531,7 +535,7 @@ function App() {
             onExportResults={handleExportResults}
           />
         </div>
-        <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
+        <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
           <RegisterPanel
             registers={registers}
             displayFormat={registerFormat}

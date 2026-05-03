@@ -146,7 +146,7 @@ def hymn_assemble(req: HymnAssembleRequest):
         "words":        words,
         "instructions": assembled,
         "memory":       _hymn_memory_slots(snap["memory"]),
-        "registers":    {"pc": snap["pc"], "ac": snap["ac"], "ir": snap["ir"], "halted": snap["halted"]},
+        "registers":    {"pc": snap["pc"], "ac": snap["ac"], "ir": snap["ir"], "zero_flag": snap["zero_flag"], "positive_flag": snap["positive_flag"], "halted": snap["halted"]},
     }
 
 @app.post("/api/hymn/step")
@@ -175,12 +175,14 @@ def hymn_step(req: HymnStepRequest):
 
     snap = machine.snapshot()
     return {
-        "pc":        snap["pc"],
-        "ac":        snap["ac"],
-        "ir":        snap["ir"],
-        "halted":    snap["halted"],
-        "memory":    _hymn_memory_slots(snap["memory"]),
-        "io_output": snap["io_output"],
+        "pc":            snap["pc"],
+        "ac":            snap["ac"],
+        "ir":            snap["ir"],
+        "zero_flag":     snap["zero_flag"],
+        "positive_flag": snap["positive_flag"],
+        "halted":        snap["halted"],
+        "memory":        _hymn_memory_slots(snap["memory"]),
+        "io_output":     snap["io_output"],
     }
 
 # ── RISC-V endpoints ──────────────────────────────────────────────────────────

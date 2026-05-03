@@ -30,6 +30,8 @@ export const HYMN_REGISTERS: Register[] = [
   { name: 'PC', number: 0, value: 0 },
   { name: 'IR', number: 1, value: 0 },
   { name: 'AC', number: 2, value: 0 },
+  { name: 'Zero Flag', number: 3, value: 'false' },
+  { name: 'Positive Flag', number: 4, value: 'false' }
 ]
 
 // ── RISC-V: 32 registers ─────────────────────────────────────
