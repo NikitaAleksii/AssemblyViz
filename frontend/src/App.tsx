@@ -25,6 +25,8 @@ import {
 } from './types'
 import './App.css'
 
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
 /**
  * A snapshot of simulator state at a single point in execution history.
  * Pushed onto `stepHistory` before every forward step so the user can step back.
@@ -155,7 +157,7 @@ function App() {
       showOutput('Cannot assemble empty code.', true)
       return false
     }
-    const endpoint = isaMode === 'HYMN' ? '/api/hymn/assemble' : '/api/riscv/assemble'
+    const endpoint = isaMode === 'HYMN' ? `${API_BASE}/api/hymn/assemble` : `${API_BASE}/api/riscv/assemble`
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -259,7 +261,7 @@ function App() {
           nextQueuePos = p.inputQueuePos + 1
         }
 
-        const res = await fetch('/api/hymn/step', {
+        const res = await fetch(`${API_BASE}/api/hymn/step`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ memory: p.memorySlots.map(s => s.value ?? 0), pc, ac, io_input: ioInput }),
@@ -313,7 +315,7 @@ function App() {
         // currentStep = actual execution count (-1 before start)
         const execCount = p.currentStep + 1   // number of steps to execute this call
 
-        const res = await fetch('/api/riscv/step', {
+        const res = await fetch(`${API_BASE}/api/riscv/step`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: p.source, step_count: execCount }),

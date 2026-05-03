@@ -1,5 +1,7 @@
 # FastAPI backend server — bridges the frontend UI with the Python assembler/simulator engine
 
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,12 +13,12 @@ from riscv.assembler import Assembler as RiscvAssembler
 from riscv.simulation import Simulation
 from riscv.isa import DIRECTIVES
 
-# Creates the FastAPI app and allows the Vite dev server (port 5173) to make requests via CORS
 app = FastAPI()
 
+_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
