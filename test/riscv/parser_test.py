@@ -1,4 +1,13 @@
 import unittest
+
+import os
+import sys
+
+_here = os.path.dirname(os.path.abspath(__file__))
+_root = os.path.dirname(os.path.dirname(_here))
+sys.path.insert(0, os.path.join(_root, "backend"))
+sys.modules.pop("riscv", None)
+
 from riscv.parser import Parser, ParsedLine, ParseError
 
 

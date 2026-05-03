@@ -97,23 +97,6 @@ Any other syscall number also halts the simulation.
 
 ---
 
-## Running the Tests
-
-From the `backend/` directory:
-
-```bash
-python3 -m riscv.tests.simulation_test
-```
-
-Or run all tests with pytest:
-
-```bash
-cd backend/
-pytest riscv/tests/
-```
-
----
-
 ## Simulation API
 
 | Method | Description |
