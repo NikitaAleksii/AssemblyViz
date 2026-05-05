@@ -5,36 +5,27 @@ from hymn.machine import MachineState
 class Executor:
     """High-level runner for HYMN programs.
 
-    Wraps a MachineState and exposes a simple step / run API.
-    Callers load a program once, then drive execution step-by-step
-    or all-at-once, and inspect the machine state after each action.
+    Wrapper for MachineState and exposes a simple step / run API.
 
-    Typical usage::
-
-        ex = Executor()
-        ex.load([0b10000010, 0b00000000])   # LOAD 2, HALT
-        ex.run()
-        print(ex.state)
+    author: RV
     """
 
     def __init__(self, input_fn=None, output_fn=None) -> None:
         """Create an Executor backed by a freshly reset MachineState.
 
-        Args:
+        parameters:
             input_fn:  Passed to MachineState for READ (LOAD 30) handling.
             output_fn: Passed to MachineState for WRITE (STOR 31) handling.
         """
         self._machine = MachineState(input_fn=input_fn, output_fn=output_fn)
 
-    # ------------------------------------------------------------------
     # Program management
-    # ------------------------------------------------------------------
 
     def load(self, words: list[int], origin: int = 0) -> None:
         """Load machine words into memory starting at *origin*, then reset
         the registers (PC, AC, IR) so execution begins from *origin*.
 
-        Args:
+        parameters:
             words:  List of 8-bit instruction/data words.
             origin: Starting memory address (0-31, default 0).
         """
@@ -45,9 +36,7 @@ class Executor:
         """Reset all registers and clear memory back to zero."""
         self._machine.reset()
 
-    # ------------------------------------------------------------------
     # Execution
-    # ------------------------------------------------------------------
 
     def step(self) -> dict:
         """Fetch and execute one instruction.
@@ -56,8 +45,8 @@ class Executor:
             A snapshot dict (see MachineState.snapshot) reflecting the
             machine state *after* the instruction has executed.
 
-        Raises:
-            RuntimeError: if the machine is already halted.
+        
+        raises RuntimeError: if the machine is already halted.
         """
         self._machine.step()
         return self._machine.snapshot()
@@ -68,15 +57,12 @@ class Executor:
         Returns:
             A snapshot dict reflecting the final halted state.
 
-        Raises:
-            RuntimeError: if the machine is already halted before run() is called.
+        raises RuntimeError if the machine is already halted before run() is called.
         """
         self._machine.run()
         return self._machine.snapshot()
 
-    # ------------------------------------------------------------------
     # State inspection
-    # ------------------------------------------------------------------
 
     @property
     def halted(self) -> bool:

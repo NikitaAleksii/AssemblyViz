@@ -6,15 +6,16 @@ from hymn.instructions import INSTRUCTIONS, OperandType
 
 @dataclass
 class ParseError:
-    """Holds information about a single parse error."""
+    """Holds information about a single parse error.
+    
+    author: RV
+    """
     line_number: int
     line_text: str
     message: str
 
 
-# ---------------------------------------------------------------------------
-# Compiled regex patterns
-# ---------------------------------------------------------------------------
+# regulr expression (regex) definitions
 
 _LABEL_DEF = re.compile(r'^[A-Z_][A-Z0-9_]*:$')    # e.g.  LOOP:
 _DECIMAL   = re.compile(r'^[0-9]+$')                # e.g.  5  31
@@ -22,38 +23,24 @@ _LABEL_REF = re.compile(r'^[A-Z_][A-Z0-9_]*$')     # e.g.  LOOP  (no colon)
 
 
 class Parser:
-    """Assembles HYMN source text into a list of 8-bit machine words.
-
-    Usage:
-        parser = Parser()
-        words = parser.parse(source_text)
-        machine.load_program(words)
-
-    If assembly fails, parser.errors will be non-empty and parse() returns None.
-    """
+    """Assembles HYMN source text into a list of 8-bit machine words."""
 
     def __init__(self) -> None:
         """Initialise the parser with an empty symbol table and error list."""
         self._errorLst = []
         self._symbolDict = {}
 
-    # ------------------------------------------------------------------
     # Public API
-    # ------------------------------------------------------------------
-
     def parse(self, source: str) -> list[int] | None:
 
-        """Assemble *source* into a list of 8-bit instruction words.
-
-        Runs a two-pass assembly: first pass builds the symbol table,
+        """Runs a two-pass assembly: first pass builds the symbol table,
         second pass encodes each instruction.
 
-        Args:
+        parameter:
             source: Multi-line HYMN assembly source text.
 
         Returns:
-            A list of ints (one per instruction) on success, or None if
-            any errors were encountered. Check self.errors for details.
+            list of ints per one instruction on success, or none
         """
         self._errorLst   = []  # reset errors list back to empty list
         self._symbolDict = {}  # reset symbol dictionary to empty dictionary
@@ -75,24 +62,20 @@ class Parser:
     @property
     def symbol_table(self) -> dict[str, int]:
         """Label-to-address map built during the first pass.
-
         Available after a successful (or partial) parse for use by a
         debugger or error reporter.
         """
         return self._symbolDict
 
-    # ------------------------------------------------------------------
-    # Private helpers — first pass
-    # ------------------------------------------------------------------
+    # first pass helpers
 
     def _first_pass(self, lines: list[str]) -> None:
 
         """Scan all lines and populate the symbol table.
-
         Does not encode any instructions. Records every label definition
         (e.g. 'LOOP:') and maps it to the address it will occupy in memory.
 
-        Args:
+        parameters:
             lines: Raw source lines, one per index."""
 
         address = 0
@@ -113,16 +96,13 @@ class Parser:
             else:
                 address += 1
 
-    # ------------------------------------------------------------------
-    # Private helpers — second pass
-    # ------------------------------------------------------------------
+    # second pass helpers
 
     def _second_pass(self, lines: list[str]) -> list[int]:
         """Encode every instruction into an 8-bit word.
-
         Uses the symbol table built by _first_pass to resolve label operands.
 
-        Args:
+        parameters:
             lines: Raw source lines, one per index.
 
         Returns:
@@ -150,19 +130,18 @@ class Parser:
 
     def _encode_line(self, line_number: int, tokens: list[str]) -> int | None:
         """Encode a single tokenised line into one 8-bit machine word.
+        8-bit layout: opcode 3 bits or operand 5 bits
 
-        8-bit layout:  [ opcode (3 bits) | operand (5 bits) ]
-
-        Args:
+        parameters:
             line_number: 1-based line number for error messages.
-            tokens:      Non-empty list of tokens; tokens[0] is the mnemonic.
+            tokens: list of tokens; tokens[0] is the mnemonic.
 
         Returns:
             Encoded 8-bit int, or None if the line contained an error.
         """
         mnemonic = tokens[0]
 
-        # Raw integer data word (e.g. bare `5` or a label-aliased constant)
+        # Raw integer data word
         if _DECIMAL.fullmatch(mnemonic):
             if len(tokens) != 1:
                 self._add_error(line_number, ' '.join(tokens),
@@ -175,20 +154,20 @@ class Parser:
                 return None
             return value
 
-        # Pseudo-ops: READ → LOAD 30 (0b11110), WRITE → STOR 31 (0b11111)
+        # Pseudo-ops: READ - LOAD 30 (0b11110), WRITE - STOR 31 (0b11111)
         if mnemonic == "READ":
             if len(tokens) != 1:
                 self._add_error(line_number, ' '.join(tokens),
                                 "'READ' takes no operands")
                 return None
-            return (0b100 << 5) | 0b11110   # LOAD 30
+            return (0b100 << 5) | 0b11110 # LOAD 30
 
         if mnemonic == "WRITE":
             if len(tokens) != 1:
                 self._add_error(line_number, ' '.join(tokens),
                                 "'WRITE' takes no operands")
                 return None
-            return (0b101 << 5) | 0b11111   # STOR 31
+            return (0b101 << 5) | 0b11111 # STOR 31
 
         if mnemonic not in INSTRUCTIONS:
             self._add_error(line_number, ' '.join(tokens),
@@ -216,17 +195,13 @@ class Parser:
 
         return (instr.opcode << 5) | operand
 
-    # ------------------------------------------------------------------
-    # Private helpers — tokenisation
-    # ------------------------------------------------------------------
+    # tokenization helpers
 
     def _tokenize_line(self, raw_line: str) -> list[str]:
-        """Strip comments and whitespace; split into tokens.
+        """Removes everything after ';', strips leading and trailing whitespace,
+        makes everything upper case, and splits on whitespace.
 
-        Removes everything after a ';', strips leading/trailing whitespace,
-        normalises to upper case, and splits on whitespace.
-
-        Args:
+        parameters:
             raw_line: One raw line of source text.
 
         Returns:
@@ -239,9 +214,7 @@ class Parser:
         return line.split()
 
     def _is_label_definition(self, token: str) -> bool:
-        """Return True if *token* is a label definition (ends with ':').
-
-        Uses _LABEL_DEF regex: must start with a letter/underscore,
+        """Uses _LABEL_DEF regex: must start with a letter/underscore,
         contain only alphanumeric/underscore characters, and end with ':'.
 
         Args:
@@ -251,17 +224,16 @@ class Parser:
 
     def _resolve_operand(self, token: str, line_number: int) -> int | None:
         """Resolve an operand token to an integer address.
-
         The operand may be a decimal integer literal or a label name.
         Adds a ParseError and returns None if the label is undefined or
-        the value is out of the valid 5-bit range (0–31).
+        the value is out of the valid 5-bit range (0 - 31).
 
-        Args:
+        parameters:
             token:       The operand token string.
             line_number: For error reporting.
 
         Returns:
-            Integer address (0–31), or None on error.
+            Integer address (0 - 31), or None on error.
         """
         if _DECIMAL.fullmatch(token):
             value = int(token)
@@ -282,16 +254,13 @@ class Parser:
             return None
 
         return value
-
-    # ------------------------------------------------------------------
-    # Private helpers — error reporting
-    # ------------------------------------------------------------------
+    
+    #error helpers
 
     def _add_error(self, line_number: int, raw_line: str, message: str) -> None:
-
         """Record a ParseError for later inspection via self.errors.
 
-        Args:
+        parameters:
             line_number: 1-based line number.
             raw_line:    The original source line.
             message:     Human-readable description of the problem.

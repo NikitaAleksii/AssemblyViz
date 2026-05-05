@@ -1,35 +1,24 @@
 class MachineState:
 
     """
-    Simulates the HYMN CPU: 3 registers (IR, PC, AC),
+    Simulates HYMN CPU
     32-byte memory, and 8 instructions with 3-bit opcodes.
 
-    Every instruction is 8 bits packed like this:
+    3 bits - 8 possible opcodes (0 - 7)
+    5 bits - 32 possible addresses (0 - 31, matching memory size)
 
-    [opcode (3 bits) | address (5 bits)]
-    bits 7-5           bits 4-0
+    PC (Program Counter) - Points to the next instruction in memory to execute      
+    AC (Accumulator) - The one general-purpose register — all math happens here 
+    IR (Instruction Register) - Holds the raw instruction word just fetched from memory  
 
-    - 3 bits → 8 possible opcodes (0–7)
-    - 5 bits → 32 possible addresses (0–31, matching memory size)
-
-    
-    registers:
-    ┌───────────────────────────┬──────────────────────────────────────────────────────────┐
-    │         Register          │                           Role                           │
-    ├───────────────────────────┼──────────────────────────────────────────────────────────┤
-    │ PC (Program Counter)      │ Points to the next instruction in memory to execute      │
-    ├───────────────────────────┼──────────────────────────────────────────────────────────┤
-    │ AC (Accumulator)          │ The one general-purpose register — all math happens here │
-    ├───────────────────────────┼──────────────────────────────────────────────────────────┤
-    | IR (Instruction Register) │ Holds the raw instruction word just fetched from memory  │
-    └───────────────────────────┴──────────────────────────────────────────────────────────┘
+    author: RV
     """
 
     MEMORY_SIZE = 32  # bytes
 
-    # Memory-mapped I/O addresses (not shown as normal memory in the simulator)
-    READ_ADDR  = 0b11110  # 30 — keyboard input  (used by LOAD 30 / READ pseudo-op)
-    WRITE_ADDR = 0b11111  # 31 — console output  (used by STOR 31 / WRITE pseudo-op)
+    # Memory-mapped input/output addresses 
+    READ_ADDR  = 0b11110  # 30 - keyboard input - used by LOAD 30 / READ pseudo-op
+    WRITE_ADDR = 0b11111  # 31 - console output - used by STOR 31 / WRITE pseudo-op
 
     # Opcode constants
     HALT = 0b000
@@ -67,9 +56,9 @@ class MachineState:
         """Return every register and every memory cell to zero.
         Also clears the I/O output log."""
         self._memory = [0] * self.MEMORY_SIZE  # list of ints, each 0-255
-        self._pc = 0   # program counter  (0-31)
-        self._ac = 0   # accumulator      (signed Python int)
-        self._ir = 0   # instruction register (raw 8-bit instruction word)
+        self._pc = 0   # program counter (0-31)
+        self._ac = 0   # accumulator (signed int)
+        self._ir = 0   # instruction register (8-bit instruction word)
         self._halted = False
         self._io_output = []
 
@@ -80,11 +69,7 @@ class MachineState:
         return self._memory[address]
 
     def write_memory(self, address: int, value: int) -> None:
-        """Write *value* to *address* (0-31).
-
-        Values are stored as-is; callers are responsible for keeping them
-        in a meaningful range (0-255 for instruction words, any int for data).
-        """
+        """Write value to address (0-31)."""
         self._check_address(address)
         self._memory[address] = value
 
@@ -118,7 +103,7 @@ class MachineState:
 
     @property
     def ac(self) -> int:
-        """Accumulator — the sole general-purpose register."""
+        """Accumulator"""
         return self._ac
 
     @ac.setter
@@ -127,14 +112,13 @@ class MachineState:
 
     @property
     def ir(self) -> int:
-        """Instruction register — raw 8-bit word fetched from memory."""
+        """8-bit word fetched from memory."""
         return self._ir
 
 
     @staticmethod
     def decode(instruction: int) -> tuple[int, int]:
         """Split an 8-bit instruction word into (opcode, address).
-
         Returns:
             opcode  : int in 0-7  (high 3 bits)
             address : int in 0-31 (low 5 bits)
@@ -157,25 +141,15 @@ class MachineState:
         """Fetch and execute one instruction, updating PC, AC, and IR.
 
         Raises RuntimeError if the machine is already halted.
-        ┌────────┬─────────────────────────────────────┬─────────────────────────────┐
-        │ Opcode │         What happens to PC          │ What happens to AC / memory │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ HALT   │ unchanged                           │ _halted = True              │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ JUMP   │ PC = address                        │ nothing                     │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ JZER   │ PC = address if AC==0, else PC += 1 │ nothing                     │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ JPOS   │ PC = address if AC>0, else PC += 1  │ nothing                     │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ LOAD   │ PC += 1                             │ AC = memory[address]        │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ STOR   │ PC += 1                             │ memory[address] = AC        │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ ADD    │ PC += 1                             │ AC = AC + memory[address]   │
-        ├────────┼─────────────────────────────────────┼─────────────────────────────┤
-        │ SUB    │ PC += 1                             │ AC = AC - memory[address]   │
-        └────────┴─────────────────────────────────────┴─────────────────────────────┘
+        
+        HALT - PC is unchanged - AC is _halted = True              
+        JUMP - PC = address - nothing happens to AC                 
+        JZER - PC = address if AC==0, else PC += 1 - nothing happens to AC                       
+        JPOS - PC = address if AC>0, else PC += 1  - nothing happens to AC                        
+        LOAD - PC += 1 - AC = memory[address]        
+        STOR - PC += 1 - memory[address] = AC        
+        ADD - PC += 1 - AC = AC + memory[address]   
+        SUB - PC += 1 - AC = AC - memory[address]   
         """
         if self._halted:
             raise RuntimeError("Machine is halted; call reset() to restart.")
@@ -255,9 +229,9 @@ class MachineState:
     def snapshot(self) -> dict:
         """Return a JSON-serialisable dict of the complete machine state."""
         return {
-            "pc":        self._pc,
-            "ac":        self._ac,
-            "ir":        self._ir,
+            "pc": self._pc,
+            "ac": self._ac,
+            "ir": self._ir,
             "zero_flag": 'true' if self._ac == 0 else 'false',
             "positive_flag": 'true' if self._ac > 0 else 'false',
             "halted":    self._halted,

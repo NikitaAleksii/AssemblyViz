@@ -13,9 +13,9 @@ class OperandType(Enum):
 class InstructionDef:
     """Static definition of one HYMN instruction.
 
-    Attributes:
+    parameters:
         mnemonic:  Assembly name (e.g. "ADD").
-        opcode:    3-bit numeric opcode (0–7), matches MachineState constants.
+        opcode:    3-bit numeric opcode (0 - 7), matches MachineState constants.
         operands:  Tuple of OperandType describing each operand, in order.
                    Empty tuple means the instruction takes no operands.
     """
@@ -28,12 +28,6 @@ class InstructionDef:
         """Number of operands this instruction requires."""
         return len(self.operands)
 
-
-# ---------------------------------------------------------------------------
-# Registry  —  populated by _def() below; keyed by mnemonic (upper-case).
-
-# Companion index keyed by opcode for executor lookups.
-# ---------------------------------------------------------------------------
 INSTRUCTIONS: dict[str, InstructionDef] = {}
 INSTRUCTIONS_BY_OPCODE: dict[int, InstructionDef] = {}
 
@@ -45,11 +39,8 @@ def _def(mnemonic: str, opcode: int, *operands: OperandType) -> InstructionDef:
     INSTRUCTIONS_BY_OPCODE[opcode] = defn
     return defn
 
-
-# ---------------------------------------------------------------------------
-# Instruction definitions  —  opcodes mirror MachineState constants.
-# ---------------------------------------------------------------------------
     ''' 
+    Instruction definitions:
     ┌────────┬─────────────────────────────────────┬─────────────────────────────┐
     │ Opcode │         What happens to PC          │ What happens to AC / memory │
     ├────────┼─────────────────────────────────────┼─────────────────────────────┤
@@ -89,7 +80,6 @@ def _def(mnemonic: str, opcode: int, *operands: OperandType) -> InstructionDef:
     #AC = AC - memory[address] 
 
     '''
-# Example: ADD — AC = AC + memory[address]
 ADD  = _def("ADD",  0b110, OperandType.ADDRESS)
 
 HALT = _def("HALT", 0b000)
