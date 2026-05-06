@@ -15,11 +15,11 @@ class ParseError:
     message: str
 
 
-# regulr expression (regex) definitions
+# regular expression (regex) definitions
 
-_LABEL_DEF = re.compile(r'^[A-Z_][A-Z0-9_]*:$')    # e.g.  LOOP:
-_DECIMAL   = re.compile(r'^[0-9]+$')                # e.g.  5  31
-_LABEL_REF = re.compile(r'^[A-Z_][A-Z0-9_]*$')     # e.g.  LOOP  (no colon)
+_LABEL_DEF = re.compile(r'^[A-Z_][A-Z0-9_]*:$') # e.g. LOOP:
+_DECIMAL   = re.compile(r'^[0-9]+$') # e.g.  5  31
+_LABEL_REF = re.compile(r'^[A-Z_][A-Z0-9_]*$') # e.g.  LOOP
 
 
 class Parser:
@@ -144,49 +144,42 @@ class Parser:
         # Raw integer data word
         if _DECIMAL.fullmatch(mnemonic):
             if len(tokens) != 1:
-                self._add_error(line_number, ' '.join(tokens),
-                                "Data word must be a single integer")
+                self._add_error(line_number, ' '.join(tokens), "Data word must be a single integer")
                 return None
             value = int(mnemonic)
             if not (0 <= value <= 255):
-                self._add_error(line_number, ' '.join(tokens),
-                                f"Data value {value} out of 8-bit range (0–255)")
+                self._add_error(line_number, ' '.join(tokens), f"Data value {value} out of 8-bit range (0 - 255)")
                 return None
             return value
 
         # Pseudo-ops: READ - LOAD 30 (0b11110), WRITE - STOR 31 (0b11111)
         if mnemonic == "READ":
             if len(tokens) != 1:
-                self._add_error(line_number, ' '.join(tokens),
-                                "'READ' takes no operands")
+                self._add_error(line_number, ' '.join(tokens), "'READ' takes no operands")
                 return None
             return (0b100 << 5) | 0b11110 # LOAD 30
 
         if mnemonic == "WRITE":
             if len(tokens) != 1:
-                self._add_error(line_number, ' '.join(tokens),
-                                "'WRITE' takes no operands")
+                self._add_error(line_number, ' '.join(tokens), "'WRITE' takes no operands")
                 return None
             return (0b101 << 5) | 0b11111 # STOR 31
 
         if mnemonic not in INSTRUCTIONS:
-            self._add_error(line_number, ' '.join(tokens),
-                            f"Unknown mnemonic: '{mnemonic}'")
+            self._add_error(line_number, ' '.join(tokens), f"Unknown mnemonic: '{mnemonic}'")
             return None
 
         instr = INSTRUCTIONS[mnemonic]
 
         if instr.operand_count == 0:
             if len(tokens) != 1:
-                self._add_error(line_number, ' '.join(tokens),
-                                f"'{mnemonic}' takes no operands")
+                self._add_error(line_number, ' '.join(tokens), f"'{mnemonic}' takes no operands")
                 return None
             return instr.opcode << 5  # lower 5 bits are 0
 
         # All current HYMN instructions with operands take exactly one ADDRESS
         if len(tokens) != 2:
-            self._add_error(line_number, ' '.join(tokens),
-                            f"'{mnemonic}' expects 1 operand, got {len(tokens) - 1}")
+            self._add_error(line_number, ' '.join(tokens), f"'{mnemonic}' expects 1 operand, got {len(tokens) - 1}")
             return None
 
         operand = self._resolve_operand(tokens[1], line_number)
@@ -224,9 +217,6 @@ class Parser:
 
     def _resolve_operand(self, token: str, line_number: int) -> int | None:
         """Resolve an operand token to an integer address.
-        The operand may be a decimal integer literal or a label name.
-        Adds a ParseError and returns None if the label is undefined or
-        the value is out of the valid 5-bit range (0 - 31).
 
         parameters:
             token:       The operand token string.
@@ -239,18 +229,15 @@ class Parser:
             value = int(token)
         elif _LABEL_REF.fullmatch(token):
             if token not in self._symbolDict:
-                self._add_error(line_number, token,
-                                f"Undefined label: '{token}'")
+                self._add_error(line_number, token, f"Undefined label: '{token}'")
                 return None
             value = self._symbolDict[token]
         else:
-            self._add_error(line_number, token,
-                            f"Invalid operand: '{token}'")
+            self._add_error(line_number, token, f"Invalid operand: '{token}'")
             return None
 
         if not (0 <= value <= 31):
-            self._add_error(line_number, token,
-                            f"Operand {value} out of range (0–31)")
+            self._add_error(line_number, token, f"Operand {value} out of range (0 - 31)")
             return None
 
         return value
