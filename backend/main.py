@@ -1,4 +1,16 @@
-# FastAPI backend server — bridges the frontend UI with the Python assembler/simulator engine
+"""
+FastAPI backend.
+
+Exposes REST endpoints for two ISAs:
+  - HYMN  (/api/hymn/assemble, /api/hymn/step)  — 8-bit accumulator machine
+  - RISC-V (/api/riscv/assemble, /api/riscv/step) — 32-bit RV32I subset
+
+Both assembler endpoints parse source, assemble to machine words, and return an
+initial register/memory snapshot.  
+
+CORS origins are controlled via the ALLOWED_ORIGINS environment variable
+(default: http://localhost:5173).
+"""
 
 import os
 
