@@ -1,3 +1,20 @@
+"""
+RISC-V simulation engine.
+
+Provides the Simulation class, which ties together the parser, assembler,
+decoder, memory, and register file into a complete step-by-step RV32I
+execution engine. Typical usage:
+
+    sim = Simulation()
+    sim.load(assembly_source)   # parse, assemble, and write to memory
+    while not sim.halted:
+        state = sim.step()      # execute one instruction, return snapshot
+
+Snapshots (returned by step/snapshot) are dicts containing the current
+PC, halted flag, all 32 register values, raw memory, and any I/O output
+produced by ecall syscalls.
+"""
+
 from riscv.isa import *
 from riscv.parser import *
 from riscv.assembler import *

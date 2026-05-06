@@ -1,3 +1,23 @@
+"""
+Two-pass RISC-V assembly parser.
+
+Pass 1 (_first_pass) scans all lines to build a symbol table mapping label
+names to byte addresses, accounting for pseudo-instruction expansion (e.g.
+`la` always emits 2 words, `li` emits 1 or 2 depending on the immediate).
+
+Pass 2 (_second_pass) walks every line again, validates each mnemonic and its
+operands against the ISA type tables imported from riscv.isa, resolves label
+references against the symbol table, and emits a ParsedLine for each
+instruction or data directive.
+
+Any validation failure appends a ParseError and causes parse() to return None
+instead of the parsed-line list.
+
+Supported .data directives: .word, .ascii, .asciz, .string.
+String bytes are null-terminated (except .ascii), 4-byte aligned,
+and little-endian 32-bit words.
+"""
+
 import re
 from dataclasses import dataclass
 from riscv.isa import (
