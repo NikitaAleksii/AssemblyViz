@@ -1,5 +1,7 @@
 # AssemblyViz - Group 1
 
+> Web-based step-by-step visualizer for assembly code execution on HYMN (8-bit) and RISC-V RV32I (32-bit) architectures.
+
 ## Team Members
 
 - **Nikita Aleksii** - Scrum Master + Developer
