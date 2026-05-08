@@ -112,7 +112,7 @@ Runs on `http://localhost:5173`. API calls are proxied to the backend.
 
 ---
 
-## Architectures
+## Instruction Set Architectures (ISA)
 
 ### HYMN
 
