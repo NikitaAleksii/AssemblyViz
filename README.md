@@ -25,13 +25,6 @@ AssemblyViz/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI app — all HTTP endpoints
 │   ├── hymn/               # 8-bit HYMN CPU simulator
-│   │   ├── tests/
-│   │   │   ├── step_sumn.py
-│   │   │   ├── test_debugger.py
-│   │   │   ├── test_executor.py
-│   │   │   ├── test_instructions.py
-│   │   │   ├── test_machine.py
-│   │   │   └── test_parser.py
 │   │   ├── __init__.py
 │   │   ├── instructions.py
 │   │   ├── parser.py
@@ -39,14 +32,6 @@ AssemblyViz/
 │   │   ├── executor.py
 │   │   └── debugger.py
 │   └── riscv/              # 32-bit RISC-V RV32I simulator
-│       ├── tests/
-│       │   ├── __init__.py
-│       │   ├── assembler_test.py
-│       │   ├── decoder_test.py
-│       │   ├── memory_test.py
-│       │   ├── merge_sort.S
-│       │   ├── parser_test.py
-│       │   └── simulation_test.py
 │       ├── __init__.py
 │       ├── isa.py
 │       ├── parser.py
@@ -56,27 +41,42 @@ AssemblyViz/
 │       ├── registers.py
 │       └── simulation.py
 └── frontend/
-    ├── index.html
-    └── src/
-        ├── assets/
-        │   ├── backwards.svg
-        │   ├── forward.svg
-        │   ├── logo.svg
-        │   ├── play.svg
-        │   └── reset.svg
-        ├── components/
-        │   ├── CodeEditor.tsx    # Assembly source editor, input queue, import/export
-        │   ├── ErrorBoundary.tsx # React error boundary wrapping the app
-        │   ├── MemoryPanel.tsx   # Memory state viewer
-        │   ├── Navbar.tsx        # Top bar with playback controls and ISA toggle
-        │   ├── RegisterPanel.tsx # Register state viewer
-        │   └── ResultsPanel.tsx  # Assembled instruction listing
-        ├── types/
-        │   └── index.ts          # Shared TypeScript interfaces
-        ├── App.css               # All component styles
-        ├── App.tsx               # Root component — owns all simulation state
-        ├── index.css
-        └── main.tsx              # React entry point
+|   ├── index.html
+|   └── src/
+|      ├── assets/
+|       │   ├── backwards.svg
+|       │   ├── forward.svg
+|       │   ├── logo.svg
+|       │   ├── play.svg
+|       │   └── reset.svg
+|       ├── components/
+|       │   ├── CodeEditor.tsx    # Assembly source editor, input queue, import/export
+|       │   ├── ErrorBoundary.tsx # React error boundary wrapping the app
+|       │   ├── MemoryPanel.tsx   # Memory state viewer
+|       │   ├── Navbar.tsx        # Top bar with playback controls and ISA toggle
+|       │   ├── RegisterPanel.tsx # Register state viewer
+|       │   └── ResultsPanel.tsx  # Assembled instruction listing
+|       ├── types/
+|       │   └── index.ts          # Shared TypeScript interfaces
+|       ├── App.css               # All component styles
+|       ├── App.tsx               # Root component — owns all simulation state
+|       ├── index.css
+|       └── main.tsx              # React entry point
+├── test/
+│   ├── hymn/
+│   │   ├── step_sumn.py
+│   │   ├── test_debugger.py
+│   │   ├── test_executor.py
+│   │   ├── test_instructions.py
+│   │   ├── test_machine.py
+│   │   └── test_parser.py
+│   ├── risc/
+│       ├── assembler_test.py
+│       ├── decoder_test.py
+│       ├── memory_test.py
+│       ├── merge_sort.S
+│       ├── parser_test.py
+│       └── simulation_test.py
 ```
 
 ---
