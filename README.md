@@ -11,6 +11,8 @@
 
 ## What is it
 
+![Poster](./reports/AssemblyViz VMC Poster.png)
+
 A web-based visualizer for assembly language execution. Supports two architectures - a simple 8-bit educational CPU (HYMN) and the full 32-bit RISC-V base integer instruction set (RV32I). Both backends share the same design philosophy: parse, assemble, and simulate step by step so the frontend can visualize register and memory state at each instruction.
 
 ---
