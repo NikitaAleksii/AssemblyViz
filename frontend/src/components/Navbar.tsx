@@ -8,9 +8,9 @@ import reset from '../assets/reset.svg'
 
 /** Props for the Navbar component. */
 interface NavbarProps {
-  activeTab: 'editor' | 'memory'
-  /** Callback invoked when the user switches between Editor and Memory tabs. */
-  onTabChange: (tab: 'editor' | 'memory') => void
+  activeTab: 'editor' | 'memory' | 'docs'
+  /** Callback invoked when the user switches between Editor, Memory, and Documentation tabs. */
+  onTabChange: (tab: 'editor' | 'memory' | 'docs') => void
   isaMode: ISAMode
   /** Callback invoked when the user toggles the ISA mode. */
   onISAChange: (mode: ISAMode) => void
@@ -62,6 +62,12 @@ const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onTabChange('memory')}
         >
           ☰ Memory
+        </button>
+        <button
+          className={`tab ${activeTab === 'docs' ? 'active' : ''}`}
+          onClick={() => onTabChange('docs')}
+        >
+          ? Docs
         </button>
       </div>
 

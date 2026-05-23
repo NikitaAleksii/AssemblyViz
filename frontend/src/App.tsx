@@ -17,6 +17,7 @@ import CodeEditor from './components/CodeEditor'
 import MemoryPanel from './components/MemoryPanel'
 import ResultsPanel from './components/ResultsPanel'
 import RegisterPanel from './components/RegisterPanel'
+import DocumentationPanel from './components/DocumentationPanel'
 import {
   AssembledInstruction, MemorySlot, Register,
   ISAMode, DisplayFormat,
@@ -34,6 +35,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? ''
 interface HistoryEntry {
   registers: Register[]
   memorySlots: MemorySlot[]
+  assembled: AssembledInstruction[]
   /** The index of the instruction that was active when this snapshot was taken (-1 = before first step). */
   currentStep: number
   inputQueuePos: number
@@ -82,7 +84,7 @@ function App() {
   const [consoleOutput, setConsole] = useState('')
   const [isaMode, setISAMode]       = useState<ISAMode>('HYMN')
   const [speedMs, setSpeedMs]       = useState(200)
-  const [activeTab, setActiveTab]    = useState<'editor' | 'memory'>('editor')
+  const [activeTab, setActiveTab]    = useState<'editor' | 'memory' | 'docs'>('editor')
   const [memoryFormat, setMemFmt]   = useState<DisplayFormat>('HEXADECIMAL')
   const [registerFormat, setRegFmt] = useState<DisplayFormat>('HEXADECIMAL')
 
@@ -236,6 +238,7 @@ function App() {
     stepHistory.current.push({
       registers:     p.registers,
       memorySlots:   p.memorySlots,
+      assembled:     p.assembled,
       currentStep:   p.currentStep,
       inputQueuePos: p.inputQueuePos,
     })
@@ -383,9 +386,9 @@ function App() {
     const prev = stepHistory.current.pop()!
     setRegisters(prev.registers)
     setMemorySlots(prev.memorySlots)
+    setAssembled(prev.assembled)
     setCurrentStep(prev.currentStep)
     inputQueuePos.current = prev.inputQueuePos
-    setAssembled(assembled.map((l, i) => ({ ...l, isActive: i === prev.currentStep })))
     if (prev.currentStep < 0) showOutput('Returned to start.')
     else showOutput(`Moved back to step ${prev.currentStep + 1}.`)
   }
@@ -493,58 +496,66 @@ function App() {
         onStep={handleStep}       onReset={handleReset}
       />
       <main className="main-layout">
-        <div style={{ width: leftWidth, minWidth: 300, maxWidth: 600, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-          {activeTab === 'editor'
-            ? <CodeEditor
-                code={code}               output={output}
-                isError={isError}         isaMode={isaMode}
-                consoleOutput={consoleOutput}
-                onCodeChange={setCode}    onAssemble={handleAssemble}
-                onExport={handleExport}
-                inputQueue={inputQueue}
-                onInputQueueChange={setInputQueue}
-              />
-            : <MemoryPanel
-                slots={memorySlots}
-                displayFormat={memoryFormat}
-                onFormatChange={setMemFmt}
-              />
-          }
-        </div>
+        {activeTab === 'docs'
+          ? <DocumentationPanel />
+          : <>
+              <div style={{ width: leftWidth, minWidth: 300, maxWidth: 600, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+                {activeTab === 'editor'
+                  ? <CodeEditor
+                      code={code}               output={output}
+                      isError={isError}         isaMode={isaMode}
+                      consoleOutput={consoleOutput}
+                      onCodeChange={setCode}    onAssemble={handleAssemble}
+                      onExport={handleExport}
+                      inputQueue={inputQueue}
+                      onInputQueueChange={setInputQueue}
+                    />
+                  : <MemoryPanel
+                      slots={memorySlots}
+                      displayFormat={memoryFormat}
+                      onFormatChange={setMemFmt}
+                    />
+                }
+              </div>
 
-        <div
-          style={{ width: '5px', cursor: 'ew-resize', flexShrink: 0, background: '#e5e5e5' }}
-          onMouseDown={(e) => {
-            e.preventDefault()
-            const startX = e.clientX
-            const startWidth = leftWidth
-            const onMove = (mv: MouseEvent) => {
-              const newWidth = Math.min(600, Math.max(300, startWidth + mv.clientX - startX))
-              setLeftWidth(newWidth)
-            }
-            const onUp = () => {
-              window.removeEventListener('mousemove', onMove)
-              window.removeEventListener('mouseup', onUp)
-            }
-            window.addEventListener('mousemove', onMove)
-            window.addEventListener('mouseup', onUp)
-          }}
-        />
+              <div
+                style={{ width: '5px', cursor: 'ew-resize', flexShrink: 0, background: '#e5e5e5' }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  const startX = e.clientX
+                  const startWidth = leftWidth
+                  const onMove = (mv: MouseEvent) => {
+                    const newWidth = Math.min(600, Math.max(300, startWidth + mv.clientX - startX))
+                    setLeftWidth(newWidth)
+                  }
+                  const onUp = () => {
+                    window.removeEventListener('mousemove', onMove)
+                    window.removeEventListener('mouseup', onUp)
+                  }
+                  window.addEventListener('mousemove', onMove)
+                  window.addEventListener('mouseup', onUp)
+                }}
+              />
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <ResultsPanel
-            instructions={assembled}
-            onExportResults={handleExportResults}
-          />
-        </div>
-        <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
-          <RegisterPanel
-            registers={registers}
-            displayFormat={registerFormat}
-            onFormatChange={setRegFmt}
-          />
-        </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <ResultsPanel
+                  instructions={assembled}
+                  onExportResults={handleExportResults}
+                />
+              </div>
+              <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
+                <RegisterPanel
+                  registers={registers}
+                  displayFormat={registerFormat}
+                  onFormatChange={setRegFmt}
+                />
+              </div>
+            </>
+        }
       </main>
+      <footer className="app-footer">
+        <span>Nikita Aleksii · Robby Votta · Maria Fajardo · Yurdanur Yolcu</span>
+      </footer>
     </div>
   )
 }
