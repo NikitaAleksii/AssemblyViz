@@ -9,7 +9,7 @@ const HYMN_OPCODES: Record<number, string> = {
 function decodeIR(value: number): string {
   const opcode = (value >> 5) & 0b111
   const address = value & 0b11111
-  return `${HYMN_OPCODES[opcode] ?? '???'} ${address.toString(2).padStart(5, '0')}`
+  return `${HYMN_OPCODES[opcode] ?? '???'} ${address}`
 }
 
 /** Props for the RegisterPanel component. */

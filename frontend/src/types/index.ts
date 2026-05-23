@@ -48,9 +48,9 @@ export const RISCV_DEFAULT_REGISTERS: Register[] = RISCV_REGISTER_NAMES.map(
   (name, i) => ({ name, number: i, value: 0 })
 )
 
-// ── HYMN: 30 memory slots (5-bit binary addresses 00000–11101) ─
+// ── HYMN: 32 memory slots (5-bit binary addresses 00000–11101) ─
 export function buildHYMNMemory(): MemorySlot[] {
-  return Array.from({ length: 30 }, (_, i) => ({
+  return Array.from({ length: 32 }, (_, i) => ({
     address: i.toString(2).padStart(5, '0'),
     instruction: 'HALT',
     isActive: false,

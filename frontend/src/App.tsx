@@ -35,6 +35,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? ''
 interface HistoryEntry {
   registers: Register[]
   memorySlots: MemorySlot[]
+  assembled: AssembledInstruction[]
   /** The index of the instruction that was active when this snapshot was taken (-1 = before first step). */
   currentStep: number
   inputQueuePos: number
@@ -237,6 +238,7 @@ function App() {
     stepHistory.current.push({
       registers:     p.registers,
       memorySlots:   p.memorySlots,
+      assembled:     p.assembled,
       currentStep:   p.currentStep,
       inputQueuePos: p.inputQueuePos,
     })
@@ -384,9 +386,9 @@ function App() {
     const prev = stepHistory.current.pop()!
     setRegisters(prev.registers)
     setMemorySlots(prev.memorySlots)
+    setAssembled(prev.assembled)
     setCurrentStep(prev.currentStep)
     inputQueuePos.current = prev.inputQueuePos
-    setAssembled(assembled.map((l, i) => ({ ...l, isActive: i === prev.currentStep })))
     if (prev.currentStep < 0) showOutput('Returned to start.')
     else showOutput(`Moved back to step ${prev.currentStep + 1}.`)
   }

@@ -12,6 +12,7 @@ loop:
     STOR total          # total = AC
 
     LOAD count
+    SUB  one            # AC = count - 1
     STOR count          # count = AC
 
     JUMP loop
@@ -30,4 +31,4 @@ flag:
 total: HALT             # sum accumulator  (initialised to 0 at runtime)
 count: HALT             # loop counter     (set to n at runtime)
 zero:  HALT             # constant 0
-one:   HALT             # constant 1  (patched to 1 by run_sumn.py)
+one:   1                # constant 1
