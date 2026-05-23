@@ -221,9 +221,9 @@ class Simulation:
                 takeBranch = True
             elif instr_mnemonic == "bne" and rs1 != rs2:
                 takeBranch = True
-            elif instr_mnemonic == "blt" and rs1 < rs2:
+            elif instr_mnemonic == "blt" and to_signed(rs1, 32) < to_signed(rs2, 32):
                 takeBranch = True
-            elif instr_mnemonic == "bge" and rs1 >= rs2:
+            elif instr_mnemonic == "bge" and to_signed(rs1, 32) >= to_signed(rs2, 32):
                 takeBranch = True
             elif instr_mnemonic == "bltu" and (rs1 & 0xFFFFFFFF) < (rs2 & 0xFFFFFFFF):
                 takeBranch = True
@@ -295,25 +295,24 @@ class Simulation:
     # Implements arithmetic logic unit (ALU)
     def _alu(self, mnemonic, a, b) -> int:
         if mnemonic == "add" or mnemonic == "addi":
-            return a + b
+            return (a + b) & 0xFFFFFFFF
         if mnemonic == "sub":
-            return a - b
+            return (a - b) & 0xFFFFFFFF
         if mnemonic == "and" or mnemonic == "andi":
-            return a & b
+            return (a & b) & 0xFFFFFFFF
         if mnemonic == "or" or mnemonic == "ori":
-            return a | b
+            return (a | b) & 0xFFFFFFFF
         if mnemonic == "xor" or mnemonic == "xori":
-            return a ^ b
+            return (a ^ b) & 0xFFFFFFFF
         if mnemonic == "sll" or mnemonic == "slli":
-            return a << (b & 0b11111)  # logical left
+            return (a << (b & 0b11111)) & 0xFFFFFFFF
         if mnemonic == "srl" or mnemonic == "srli":
-            return (a & 0xFFFFFFFF) >> (b & 0b11111)   # logical right
+            return (a & 0xFFFFFFFF) >> (b & 0b11111)
         if mnemonic == "sra" or mnemonic == "srai":
-            return to_signed(a, 32) >> (b & 0b11111)   # arithmetic right
+            return to_signed(a, 32) >> (b & 0b11111)
         if mnemonic == "slt" or mnemonic == "slti":
-            return 1 if a < b else 0  # less than
+            return 1 if to_signed(a, 32) < to_signed(b, 32) else 0
         if mnemonic == "sltu" or mnemonic == "sltiu":
-            # less than unsigned
             return 1 if (a & 0xFFFFFFFF) < (b & 0xFFFFFFFF) else 0
 
         return 0

@@ -188,7 +188,7 @@ def hymn_step(req: HymnStepRequest):
 
     try:
         machine.step()
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     snap = machine.snapshot()
@@ -246,8 +246,8 @@ def riscv_step(req: RiscvStepRequest):
         errors = [{"line": e.line_number, "message": e.message} for e in sim._errors]
         raise HTTPException(status_code=400, detail={"errors": errors})
 
-    # Run warm-up steps (N-1), then capture only the output from the Nth step
-    for _ in range(req.step_count - 1):
+    # Run warm-up steps (N), then capture only the output from the (N+1)th step
+    for _ in range(req.step_count):
         if sim.halted:
             break
         sim.step()
