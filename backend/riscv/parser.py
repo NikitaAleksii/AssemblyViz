@@ -36,11 +36,21 @@ RESERVED = MNEMONICS_SET | set(REGISTER_NAMES) | DIRECTIVES
 
 _LABEL_DEF   = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*:$')
 _LABEL_REF   = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
-_REGISTER = re.compile(r'^(x([0-9]|[12][0-9]|3[01])|zero|ra|sp|gp|tp|t[0-6]|s\d+|a[0-7]|fp)$')
+_REGISTER = re.compile(r'^(x([0-9]|[12][0-9]|3[01])|zero|ra|sp|gp|tp|t[0-6]|s([0-9]|1[01])|a[0-7]|fp)$')
 _IMMEDIATE   = re.compile(r'^-?0x[0-9a-fA-F]+$|^-?\d+$')
-_MEM_OPERAND = re.compile(r'^-?\d+\(\w+\)$')
+# offset(base): offset is an optional decimal/hex immediate, base is checked
+# against _REGISTER separately for a targeted error message
+_MEM_OPERAND = re.compile(r'^(-?(?:0x[0-9a-fA-F]+|\d+))?\((\w+)\)$')
 
 _ESCAPES = {"n": 10, "t": 9, "r": 13, "0": 0, "\\": 92, '"': 34, "'": 39}
+
+
+# Parses the integer forms _IMMEDIATE admits: decimal or 0x hex.
+# Unlike int(x, 0), leading-zero decimals ('010') are read as decimal
+# instead of raising, so every regex-validated token parses cleanly.
+def parse_int(text: str) -> int:
+    text = text.strip()
+    return int(text, 16) if text.lstrip("-").startswith("0x") else int(text, 10)
 
 # ------------------------------------------------------------------
 # Data classes
@@ -216,24 +226,57 @@ class Parser:
                 self._add_error(line_number, ' '.join(tokens), f"Unknown directive: '{directive}'")
                 continue
 
+            try:
+                data_words = self._data_words(tokens)
+            except ValueError as e:
+                self._add_error(line_number, ' '.join(tokens), str(e))
+                continue
+
             self._parsed_lines.append(ParsedLine(
                 line_number=line_number,
                 label=label,
                 mnemonic=directive,
                 operands=tokens[1:],
-                data_words=self._data_words(tokens)
+                data_words=data_words
             ))
 
     # ------------------------------------------------------------------
     # Private helpers — general
     # ------------------------------------------------------------------
 
-    # Tokenizes a line
+    # Tokenizes a line: '#' starts a comment and commas/whitespace separate
+    # tokens, but only OUTSIDE string literals — a quoted string (quotes
+    # included, escapes intact) is kept as a single token so '#', ',' and
+    # runs of spaces inside it survive
     def _tokenize_line(self, line: str) -> list[str]:
-        tokenized_line = line.split("#")[0].strip()  # do not include comments
-        if not tokenized_line:
-            return []
-        return tokenized_line.replace(",", "").split()
+        tokens = []
+        current = []
+        in_string = False
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            if in_string:
+                current.append(ch)
+                if ch == "\\" and i + 1 < len(line):  # keep escaped char, incl. \"
+                    current.append(line[i + 1])
+                    i += 1
+                elif ch == '"':
+                    in_string = False
+            elif ch == "#":
+                break
+            elif ch == '"':
+                in_string = True
+                current.append(ch)
+            elif ch in " \t,":
+                if current:
+                    tokens.append(''.join(current))
+                    current = []
+            else:
+                current.append(ch)
+            i += 1
+        if current:
+            tokens.append(''.join(current))
+        return tokens
 
     # Adds an error of ParseError class
     def _add_error(self, line_number: int, line_text: str, message: str) -> None:
@@ -265,14 +308,26 @@ class Parser:
                 self._add_error(line_number, line_text, f"Invalid immediate: '{token}'")
                 return False
         elif expected == "mem":
-            if not _MEM_OPERAND.fullmatch(token):
+            match = _MEM_OPERAND.fullmatch(token)
+            if not match:
                 self._add_error(line_number, line_text, f"Invalid memory operand: '{token}'")
+                return False
+            if not _REGISTER.fullmatch(match.group(2).lower()):
+                self._add_error(line_number, line_text, f"Invalid base register in memory operand: '{match.group(2)}'")
                 return False
         elif expected == "label":
             if not _LABEL_REF.fullmatch(token) and not _IMMEDIATE.fullmatch(token):
                 self._add_error(line_number, line_text, f"Invalid label or immediate: '{token}'")
                 return False
             if _LABEL_REF.fullmatch(token) and token not in self._symbol_table:
+                self._add_error(line_number, line_text, f"Undefined label: '{token}'")
+                return False
+        elif expected == "labelname":
+            # a symbol only — numeric addresses are not accepted (la needs a label; li covers numerics)
+            if not _LABEL_REF.fullmatch(token):
+                self._add_error(line_number, line_text, f"Invalid label: '{token}'")
+                return False
+            if token not in self._symbol_table:
                 self._add_error(line_number, line_text, f"Undefined label: '{token}'")
                 return False
         return True
@@ -304,7 +359,7 @@ class Parser:
         elif mnemonic in NO_OPERAND:
             return check(0)
         elif mnemonic in LA_TYPE:
-            return check(2, "reg", "label")
+            return check(2, "reg", "labelname")
         elif mnemonic in LI_TYPE:
             return check(2, "reg", "imm")
         elif mnemonic in MV_TYPE:
@@ -332,7 +387,7 @@ class Parser:
             return 2
         if instr_temp == "li":
             try:
-                imm = int(tokens[2], 0)
+                imm = parse_int(tokens[2])
                 return 1 if -2048 <= imm <= 2047 else 2
             except (IndexError, ValueError):
                 return 1
@@ -341,7 +396,12 @@ class Parser:
     #  _data_size(line) returns the byte size of what _data_words would emit
     # used during the first pass to calculate data-label addresses.
     def _data_size(self, line: list[str]) -> int:
-        return len(self._data_words(line)) * 4
+        try:
+            return len(self._data_words(line)) * 4
+        except ValueError:
+            # invalid operands — the second pass reports the error; a rough
+            # estimate here just keeps later label addresses defined
+            return max(0, len(line) - 1) * 4
 
     # Handles a single .data directive line and returns the list of 32-bit words it produces
     #
@@ -360,13 +420,28 @@ class Parser:
     # returns [673897576]
     def _data_words(self, parts: list[str]) -> list[int]:
         directive = parts[0].lower()
-        args = ' '.join(parts[1:]) if len(parts) > 1 else ""
 
         if directive == ".word":
-            return [int(v.strip(), 0) & 0xFFFFFFFF for v in args.split() if v.strip()]
+            words = []
+            for v in parts[1:]:
+                if not _IMMEDIATE.fullmatch(v):
+                    raise ValueError(f"Invalid .word value: '{v}'")
+                value = parse_int(v)
+                # accept any signed or unsigned 32-bit form; anything wider
+                # would be silently truncated by the mask below
+                if not (-2147483648 <= value <= 4294967295):
+                    raise ValueError(f".word value {v} out of 32-bit range")
+                words.append(value & 0xFFFFFFFF)
+            return words
 
         if directive in (".asciz", ".string", ".ascii"):
-            byte_vals = self._parse_string(args)
+            # the tokenizer delivers a well-formed literal as ONE token,
+            # quotes included; anything else (unquoted, unterminated,
+            # trailing junk) is rejected here
+            if (len(parts) != 2 or len(parts[1]) < 2
+                    or not parts[1].startswith('"') or not parts[1].endswith('"')):
+                raise ValueError(f"{directive} expects a single quoted string literal")
+            byte_vals = self._parse_string(parts[1])
             if directive != ".ascii":
                 byte_vals.append(0)
             while len(byte_vals) % 4:

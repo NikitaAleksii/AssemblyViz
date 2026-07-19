@@ -152,6 +152,13 @@ class TestSymbolTable:
         assert "ALPHA" not in self.p.symbol_table
         assert "BETA" in self.p.symbol_table
 
+    def test_duplicate_label_is_an_error(self):
+        result = self.p.parse("X: 5\nX: 6\nHALT")
+        assert result is None
+        assert any("Duplicate label" in e.message for e in self.p.errors)
+        # the first definition wins; it is not silently overwritten
+        assert self.p.symbol_table["X"] == 0
+
 
 # ===========================================================================
 # 4. _resolve_operand

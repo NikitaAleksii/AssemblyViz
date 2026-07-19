@@ -19,39 +19,40 @@ class Memory:
         for i in range(self.memory_slots):
             self.memory[i] = 0
 
-    def memory_write(self, address, value, mask):
-        try:
-            if (address % 4 == 0):
-                # Calculate the address in the memory
-                index = int(address/4)
-                value = value & 0xFFFFFFFF
-                current = self.memory[index]
+    # Validates an address and converts it to a slot index.
+    # Raises ValueError for misaligned or out-of-range (incl. negative) addresses,
+    # so a bad access can never wrap around via Python's negative indexing.
+    def _slot_index(self, address):
+        if address % 4 != 0:
+            raise ValueError(f"Misaligned memory access: address {address} is not word-aligned")
+        index = address // 4
+        if index < 0 or index >= self.memory_slots:
+            raise ValueError(
+                f"Memory access out of range: address {address} "
+                f"(valid addresses are 0 to {self.memory_slots * 4 - 4})")
+        return index
 
-                # Based on the input of mask, edit the contents of a memory slots.
-                # Used for storing words, halfwords, and bytes.
-                if mask[0] == "1":
-                    current = (current & 0x00FFFFFF) | (value & 0xFF000000)
-                if mask[1] == "1":
-                    current = (current & 0xFF00FFFF) | (value & 0x00FF0000)
-                if mask[2] == "1":
-                    current = (current & 0xFFFF00FF) | (value & 0x0000FF00)
-                if mask[3] == "1":
-                    current = (current & 0xFFFFFF00) | (value & 0x000000FF)
-            else:
-                raise ValueError()
-            
-            self.memory[index] = current
-        except ValueError:
-            print("Address doesn't exist in memory")
+    def memory_write(self, address, value, mask):
+        index = self._slot_index(address)
+        value = value & 0xFFFFFFFF
+        current = self.memory[index]
+
+        # Based on the input of mask, edit the contents of a memory slots.
+        # Used for storing words, halfwords, and bytes.
+        if mask[0] == "1":
+            current = (current & 0x00FFFFFF) | (value & 0xFF000000)
+        if mask[1] == "1":
+            current = (current & 0xFF00FFFF) | (value & 0x00FF0000)
+        if mask[2] == "1":
+            current = (current & 0xFFFF00FF) | (value & 0x0000FF00)
+        if mask[3] == "1":
+            current = (current & 0xFFFFFF00) | (value & 0x000000FF)
+
+        self.memory[index] = current
 
     # Return the contents of a memory slot
     def memory_read(self, address):
-        try:
-            if (address % 4 == 0):
-                return self.memory[int(address/4)]
-            raise ValueError()
-        except ValueError:
-            print("Address doesn't exist in memory")
+        return self.memory[self._slot_index(address)]
 
     def __init__(self, depth, init):
         self.memory = []
@@ -68,15 +69,12 @@ class Memory:
         # If init is not zero
         if (init):
             tokenized = init.split()
-
-            try:
-                if (self.memory_slots < len(tokenized)):
-                    raise ValueError()
-                else:
-                    for i in range(len(tokenized)):
-                        self.memory_write(i*4, int(tokenized[i]), "1111")
-            except ValueError:
-                print("Address doesn't exist in memory")
+            if (self.memory_slots < len(tokenized)):
+                raise ValueError(
+                    f"Initial memory contents ({len(tokenized)} words) exceed "
+                    f"memory size ({self.memory_slots} slots)")
+            for i in range(len(tokenized)):
+                self.memory_write(i*4, int(tokenized[i]), "1111")
 
     def memory_print(self):
         addr = 0

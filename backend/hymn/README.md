@@ -41,8 +41,8 @@ Each instruction is a single 8-bit word:
 | `JUMP` | `001` | address | PC = address |
 | `JZER` | `010` | address | PC = address if AC == 0, else PC += 1 |
 | `JPOS` | `011` | address | PC = address if AC > 0, else PC += 1 |
-| `LOAD` | `100` | address | AC = memory[address]; PC += 1 |
-| `STOR` | `101` | address | memory[address] = AC; PC += 1 |
+| `LOAD` | `100` | address | AC = memory[address]; PC += 1 (addresses 30/31 are I/O ports — see below) |
+| `STOR` | `101` | address | memory[address] = AC; PC += 1 (addresses 30/31 are I/O ports — see below) |
 | `ADD` | `110` | address | AC = AC + memory[address]; PC += 1 |
 | `SUB` | `111` | address | AC = AC - memory[address]; PC += 1 |
 
@@ -56,6 +56,13 @@ In addition to the eight instructions above, HYMN supports two pseudo-ops:
 | `WRITE` | Write AC to the I/O console |
 
 These are encoded as `LOAD 30` and `STOR 31` respectively and are handled by the machine at runtime.
+
+Addresses 30 and 31 are memory-mapped I/O **ports**, not general storage:
+
+- `LOAD 30` (READ) always reads from the input — never from the cell — so the input port is read-only and `STOR 30` is a runtime error.
+- `STOR 31` (WRITE) always writes to the console — never to the cell — so the output port is write-only and `LOAD 31` is a runtime error.
+
+Programs therefore have addresses 0–29 available as general memory.
 
 ## Python Files
 
