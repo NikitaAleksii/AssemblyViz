@@ -129,14 +129,9 @@ LI_TYPE     = {"li"}
 MV_TYPE     = {"mv"}
 J_TYPE      = {"j"}
 
-# ——————————————————— Reserved words ———————————————————
-REGISTER_NAMES = [
-    # numeric names
-    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",
-    "x8",  "x9",  "x10", "x11", "x12", "x13", "x14", "x15",
-    "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
-    "x24", "x25", "x26", "x27", "x28", "x29", "x30", "x31",
-    # ABI names
+# ——————————————————— Registers ———————————————————
+# ABI_NAMES[n] is the ABI name of register xn
+ABI_NAMES = [
     "zero",                         # x0  - hardwired zero
     "ra",                           # x1  - return address
     "sp",                           # x2  - stack pointer
@@ -150,8 +145,16 @@ REGISTER_NAMES = [
     "s6", "s7", "s8",  "s9",        # x22-x25 - saved registers
     "s10", "s11",                   # x26-x27 - saved registers
     "t3", "t4", "t5", "t6",         # x28-x31 - temporaries
-    # fp is an alias for s0
-    "fp",                           # x8  - frame pointer
 ]
+
+# Every accepted register name, kept in this order for the reserved-word set
+# and for simulation.snapshot(), which reads ABI names at offsets 32-63
+REGISTER_NAMES = [f"x{i}" for i in range(32)] + ABI_NAMES + ["fp"]
+
+# Register name -> register number (0-31); the only valid way to resolve a
+# name to an encoding index ("fp" is an alias for s0/x8)
+REGISTER_INDEX = {f"x{i}": i for i in range(32)}
+REGISTER_INDEX.update({name: i for i, name in enumerate(ABI_NAMES)})
+REGISTER_INDEX["fp"] = 8
 
 DIRECTIVES = {".text", ".data", ".word", ".asciz", ".string", ".ascii"}

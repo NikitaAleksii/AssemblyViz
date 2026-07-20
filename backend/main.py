@@ -157,7 +157,10 @@ def hymn_assemble(req: HymnAssembleRequest):
     ]
 
     machine = MachineState(input_fn=lambda: 0, output_fn=lambda v: None)
-    machine.load_program(words)
+    try:
+        machine.load_program(words)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     snap = machine.snapshot()
 
     return {
@@ -181,10 +184,10 @@ def hymn_step(req: HymnStepRequest):
     try:
         for i, val in enumerate(req.memory):
             machine.write_memory(i, val)
+        machine.pc = req.pc
+        machine.ac = req.ac
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    machine.pc = req.pc
-    machine.ac = req.ac
 
     try:
         machine.step()
@@ -215,12 +218,13 @@ def riscv_assemble(req: RiscvAssembleRequest):
         raise HTTPException(status_code=400, detail={"errors": errors})
 
     assembler = RiscvAssembler()
-    words = assembler.assemble(parsed_lines, rparser.symbol_table)
-
-    display_lines = _riscv_build_display(parsed_lines, rparser.symbol_table)
-
-    sim = Simulation()
-    sim.load(req.source)
+    try:
+        words = assembler.assemble(parsed_lines, rparser.symbol_table)
+        display_lines = _riscv_build_display(parsed_lines, rparser.symbol_table)
+        sim = Simulation()
+        sim.load(req.source)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if sim._errors:
         errors = [{"line": e.line_number, "message": e.message} for e in sim._errors]
         raise HTTPException(status_code=400, detail={"errors": errors})
@@ -240,22 +244,30 @@ def riscv_step(req: RiscvStepRequest):
     Re-simulates from scratch each call: runs N-1 warm-up steps silently,
     then captures PC, registers, halt status, and console output from step N only.
     """
+    if not (0 <= req.step_count <= 100_000):
+        raise HTTPException(status_code=400, detail="step_count must be between 0 and 100000")
     sim = Simulation()
-    sim.load(req.source)
+    try:
+        sim.load(req.source)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if sim._errors:
         errors = [{"line": e.line_number, "message": e.message} for e in sim._errors]
         raise HTTPException(status_code=400, detail={"errors": errors})
 
-    # Run warm-up steps (N), then capture only the output from the (N+1)th step
-    for _ in range(req.step_count):
-        if sim.halted:
-            break
-        sim.step()
+    try:
+        # Run warm-up steps (N), then capture only the output from the (N+1)th step
+        for _ in range(req.step_count):
+            if sim.halted:
+                break
+            sim.step()
 
-    prev_output_len = len(sim._io_output)
-    executed_pc = sim.PC          # PC of instruction about to run
-    if not sim.halted:
-        sim.step()
+        prev_output_len = len(sim._io_output)
+        executed_pc = sim.PC          # PC of instruction about to run
+        if not sim.halted:
+            sim.step()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     snap = sim.snapshot()
     return {

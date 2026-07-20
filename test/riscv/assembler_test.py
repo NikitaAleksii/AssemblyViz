@@ -362,5 +362,95 @@ class TestMultiInstruction(unittest.TestCase):
         self.assertEqual(field(w, 24, 20), 12)   # a2 = x12
 
 
+# ===========================================================================
+# Immediate range validation — out-of-range values must be rejected,
+# never silently truncated to a different value by the encoders
+# ===========================================================================
+
+class TestImmediateRanges(unittest.TestCase):
+
+    def test_addi_boundaries(self):
+        # extremes of the 12-bit signed range assemble exactly
+        w = assemble("addi x1, x0, 2047")[0]
+        self.assertEqual(field(w, 31, 20), 2047)
+        w = assemble("addi x1, x0, -2048")[0]
+        self.assertEqual(field(w, 31, 20), 0b100000000000)
+
+    def test_addi_out_of_range_raises(self):
+        with self.assertRaises(ValueError):
+            assemble("addi x1, x0, 2048")
+        with self.assertRaises(ValueError):
+            assemble("addi x1, x0, -2049")
+        with self.assertRaises(ValueError):
+            assemble("addi x1, x0, 5000")  # used to silently become 904
+
+    def test_load_store_offset_out_of_range_raises(self):
+        with self.assertRaises(ValueError):
+            assemble("lw x1, 5000(x2)")
+        with self.assertRaises(ValueError):
+            assemble("sw x1, -2049(x2)")
+
+    def test_jalr_offset_out_of_range_raises(self):
+        with self.assertRaises(ValueError):
+            assemble("jalr x1, x2, 4096")
+
+    def test_shift_amounts(self):
+        w = assemble("slli x1, x2, 31")[0]
+        self.assertEqual(field(w, 24, 20), 31)
+        for src in ("slli x1, x2, 32", "srli x1, x2, 33", "srai x1, x2, -1"):
+            with self.assertRaises(ValueError):
+                assemble(src)  # 33 used to silently become shift-by-1
+
+    def test_branch_offset_boundaries(self):
+        w = assemble("beq x0, x0, 4094")[0]
+        self.assertEqual(field(w, 31, 31), 0)    # imm[12]
+        w = assemble("beq x0, x0, -4096")[0]
+        self.assertEqual(field(w, 31, 31), 1)
+
+    def test_branch_offset_out_of_range_or_odd_raises(self):
+        with self.assertRaises(ValueError):
+            assemble("beq x0, x0, 4096")
+        with self.assertRaises(ValueError):
+            assemble("beq x0, x0, 8192")  # used to silently encode offset 0
+        with self.assertRaises(ValueError):
+            assemble("beq x0, x0, 3")     # odd offsets are not encodable
+
+    def test_branch_to_distant_label_raises(self):
+        # a label more than 4 KiB away cannot be reached by a branch
+        source = "beq x0, x0, far\n" + "nop\n" * 1100 + "far: nop"
+        with self.assertRaises(ValueError):
+            assemble(source)
+
+    def test_jal_offset_range(self):
+        w = assemble("jal x1, 1048574")[0]
+        self.assertEqual(field(w, 31, 31), 0)    # imm[20]
+        for src in ("jal x1, 1048576", "jal x1, 99999", "j 99999"):
+            with self.assertRaises(ValueError):
+                assemble(src)  # 99999 used to silently become 99998
+
+    def test_lui_auipc_range(self):
+        w = assemble("lui x1, 0xFFFFF")[0]
+        self.assertEqual(field(w, 31, 12), 0xFFFFF)
+        for src in ("lui x1, 0x100000", "lui x1, -1", "auipc x1, 0x100000"):
+            with self.assertRaises(ValueError):
+                assemble(src)
+
+    def test_li_accepts_full_32_bit_range(self):
+        # both signed and unsigned 32-bit forms are valid li immediates
+        self.assertEqual(len(assemble("li x1, -2147483648")), 2)
+        self.assertEqual(len(assemble("li x1, 4294967295")), 2)
+
+    def test_li_out_of_32_bit_range_raises(self):
+        with self.assertRaises(ValueError):
+            assemble("li x1, 4294967296")
+        with self.assertRaises(ValueError):
+            assemble("li x1, -2147483649")
+
+    def test_word_directive_out_of_32_bit_range_is_parse_error(self):
+        parser = Parser()
+        self.assertIsNone(parser.parse(".data\nv: .word 4294967296"))
+        self.assertTrue(any("32-bit range" in e.message for e in parser.errors))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -1,5 +1,5 @@
 from riscv.isa import *
-from riscv.parser import ParsedLine, ParseError
+from riscv.parser import ParsedLine, ParseError, parse_int
 
 """
 Implements a RISC-V RV32I assembler.
@@ -137,16 +137,13 @@ class Assembler:
     # Private helpers — registers and labels
     # ------------------------------------------------------------------
 
-    # Application Binary Interface
-    ABI = {name: i for i, name in enumerate(REGISTER_NAMES)}
-
     # Converts register token into its index (0-31)
-    # It handles both numeric names (x5) and ABI (t0, sp, a0) by looking up the ABI dict built from REGISTER_NAMES
+    # It handles both numeric names (x5) and ABI names (t0, sp, a0, fp)
     def _reg(self, name: str) -> int:
         name = name.strip().lower()
-        if name in self.ABI:
-            return self.ABI[name]
-        return int(name[1:])
+        if name not in REGISTER_INDEX:
+            raise ValueError(f"Invalid register: '{name}'")
+        return REGISTER_INDEX[name]
 
     # Used when instruction operand can either be a label or numerical literal
     # If the label is in labels, it returns an offset from the current PC
@@ -154,7 +151,25 @@ class Assembler:
     def _int_or_label(self, label) -> int:
         if label in self._labels:
             return self._labels[label] - self._pc
-        return int(label, 0)
+        return parse_int(label)
+
+    # Raises ValueError when an immediate/offset doesn't fit its encoding —
+    # without this the encoders would silently truncate it to a different value
+    @staticmethod
+    def _check_range(value: int, lo: int, hi: int, what: str, even: bool = False) -> int:
+        if not (lo <= value <= hi):
+            raise ValueError(f"{what} {value} out of range ({lo} to {hi})")
+        if even and value % 2 != 0:
+            raise ValueError(f"{what} {value} must be even")
+        return value
+
+    # 12-bit signed immediate shared by I-type ALU ops, loads, stores, and jalr
+    def _imm12(self, value: int, mnemonic: str) -> int:
+        return self._check_range(value, -2048, 2047, f"Immediate for '{mnemonic}'")
+
+    # 5-bit shift amount for slli/srli/srai
+    def _shamt(self, value: int, mnemonic: str) -> int:
+        return self._check_range(value, 0, 31, f"Shift amount for '{mnemonic}'")
 
     # ------------------------------------------------------------------
     # Private helpers — assembly
@@ -193,24 +208,24 @@ class Assembler:
 
         # ——————————————————— I-Type ALU ———————————————————
         elif mnemonic == "addi":
-            return self._encode_I(int(parts[3], 0), self._reg(parts[2]), 0b000, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._imm12(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b000, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "slti":
-            return self._encode_I(int(parts[3], 0), self._reg(parts[2]), 0b010, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._imm12(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b010, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "sltiu":
-            return self._encode_I(int(parts[3], 0), self._reg(parts[2]), 0b011, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._imm12(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b011, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "xori":
-            return self._encode_I(int(parts[3], 0), self._reg(parts[2]), 0b100, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._imm12(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b100, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "ori":
-            return self._encode_I(int(parts[3], 0), self._reg(parts[2]), 0b110, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._imm12(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b110, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "andi":
-            return self._encode_I(int(parts[3], 0), self._reg(parts[2]), 0b111, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._imm12(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b111, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "slli":
-            return self._encode_I(int(parts[3], 0) & 0b11111, self._reg(parts[2]), 0b001, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._shamt(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b001, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "srli":
-            return self._encode_I(int(parts[3], 0) & 0b11111, self._reg(parts[2]), 0b101, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I(self._shamt(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b101, self._reg(parts[1]), InstructionOpcodes.OPimm)
         elif mnemonic == "srai":
             # srai encodes funct7=0100000 in the upper 7 bits of the immediate
-            return self._encode_I((0b0100000 << 5) | (int(parts[3], 0) & 0b11111), self._reg(parts[2]), 0b101, self._reg(parts[1]), InstructionOpcodes.OPimm)
+            return self._encode_I((0b0100000 << 5) | self._shamt(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b101, self._reg(parts[1]), InstructionOpcodes.OPimm)
 
         # ——————————————————— I-Type LOAD ———————————————————
         elif mnemonic in ["lw", "lh", "lb", "lbu", "lhu"]:
@@ -218,11 +233,12 @@ class Assembler:
             rs1 = rs1.strip(")")
             funct3 = {"lb": 0b000, "lh": 0b001, "lw": 0b010,
                       "lbu": 0b100, "lhu": 0b101}[mnemonic]
-            return self._encode_I(int(offset, 0), self._reg(rs1), funct3, self._reg(parts[1]), InstructionOpcodes.LOAD)
+            # "(x2)" with no offset means offset 0
+            return self._encode_I(self._imm12(parse_int(offset) if offset else 0, mnemonic), self._reg(rs1), funct3, self._reg(parts[1]), InstructionOpcodes.LOAD)
 
         # ——————————————————— I-Type JALR ———————————————————
         elif mnemonic == "jalr":
-            return self._encode_I(int(parts[3], 0), self._reg(parts[2]), 0b000, self._reg(parts[1]), InstructionOpcodes.JALR)
+            return self._encode_I(self._imm12(parse_int(parts[3]), mnemonic), self._reg(parts[2]), 0b000, self._reg(parts[1]), InstructionOpcodes.JALR)
 
         # ——————————————————— I-Type System ———————————————————
         elif mnemonic == "ecall":
@@ -235,23 +251,27 @@ class Assembler:
             offset, rs1 = parts[2].split("(")
             rs1 = rs1.strip(")")
             funct3 = {"sw": 0b010, "sh": 0b001, "sb": 0b000}[mnemonic]
-            return self._encode_S(int(offset, 0), self._reg(parts[1]), self._reg(rs1), funct3, InstructionOpcodes.STORE)
+            return self._encode_S(self._imm12(parse_int(offset) if offset else 0, mnemonic), self._reg(parts[1]), self._reg(rs1), funct3, InstructionOpcodes.STORE)
 
         # ——————————————————— B-Type Branch ———————————————————
         elif mnemonic in ["beq", "bne", "blt", "bge", "bltu", "bgeu"]:
             funct3 = {"beq": 0b000, "bne": 0b001, "blt": 0b100,
                       "bge": 0b101, "bltu": 0b110, "bgeu": 0b111}[mnemonic]
-            return self._encode_B(self._int_or_label(parts[3]), self._reg(parts[2]), self._reg(parts[1]), funct3, InstructionOpcodes.BRANCH)
+            offset = self._check_range(self._int_or_label(parts[3]), -4096, 4094,
+                                       f"Branch offset for '{mnemonic}'", even=True)
+            return self._encode_B(offset, self._reg(parts[2]), self._reg(parts[1]), funct3, InstructionOpcodes.BRANCH)
 
         # ——————————————————— U-Type ———————————————————
         elif mnemonic == "lui":
-            return self._encode_U(int(parts[2], 0), self._reg(parts[1]), InstructionOpcodes.LUI)
+            return self._encode_U(self._check_range(parse_int(parts[2]), 0, 0xFFFFF, f"Immediate for '{mnemonic}'"), self._reg(parts[1]), InstructionOpcodes.LUI)
         elif mnemonic == "auipc":
-            return self._encode_U(int(parts[2], 0), self._reg(parts[1]), InstructionOpcodes.AUIPC)
+            return self._encode_U(self._check_range(parse_int(parts[2]), 0, 0xFFFFF, f"Immediate for '{mnemonic}'"), self._reg(parts[1]), InstructionOpcodes.AUIPC)
 
         # ——————————————————— J-Type ———————————————————
         elif mnemonic == "jal":
-            return self._encode_J(self._int_or_label(parts[2]), self._reg(parts[1]), InstructionOpcodes.JAL)
+            offset = self._check_range(self._int_or_label(parts[2]), -1048576, 1048574,
+                                       "Jump offset for 'jal'", even=True)
+            return self._encode_J(offset, self._reg(parts[1]), InstructionOpcodes.JAL)
 
         raise ValueError(f"Unknown Instruction: {mnemonic}")
 
@@ -288,7 +308,8 @@ class Assembler:
         #   -> lui rd, %hi(imm)  +  addi rd, rd, %lo(imm)   (large)
         if instr_temp == "li":
             rd = self._reg(parts[1])
-            imm = int(parts[2], 0)
+            imm = self._check_range(parse_int(parts[2]), -2147483648, 4294967295,
+                                    "Immediate for 'li'")
             if -2048 <= imm <= 2047:  # check if the immediate value is small
                 return [self._encode_I(imm, 0, 0b000, rd, InstructionOpcodes.OPimm)]
             upper = (imm + 0x800) >> 12
@@ -306,11 +327,13 @@ class Assembler:
 
         # j label -> jal x0, offset
         if instr_temp == "j":
-            return [self._encode_J(self._int_or_label(parts[1]), 0, InstructionOpcodes.JAL)]
+            offset = self._check_range(self._int_or_label(parts[1]), -1048576, 1048574,
+                                       "Jump offset for 'j'", even=True)
+            return [self._encode_J(offset, 0, InstructionOpcodes.JAL)]
 
         # ret -> jalr x0, ra, 0
         if instr_temp == "ret":
-            return [self._encode_I(0, self.ABI["ra"], 0b000, 0, InstructionOpcodes.JALR)]
+            return [self._encode_I(0, REGISTER_INDEX["ra"], 0b000, 0, InstructionOpcodes.JALR)]
 
         # nop  →  addi x0, x0, 0
         if instr_temp == "nop":

@@ -56,8 +56,8 @@ class MachineState:
         """Return every register and every memory cell to zero.
         Also clears the I/O output log."""
         self._memory = [0] * self.MEMORY_SIZE  # list of ints, each 0-255
-        self._pc = 0   # program counter (0-31)
-        self._ac = 0   # accumulator (signed int)
+        self._pc = 0   # program counter (5-bit, 0-31)
+        self._ac = 0   # accumulator (8-bit two's complement, -128..127)
         self._ir = 0   # instruction register (8-bit instruction word)
         self._halted = False
         self._io_output = []
@@ -69,8 +69,10 @@ class MachineState:
         return self._memory[address]
 
     def write_memory(self, address: int, value: int) -> None:
-        """Write value to address (0-31)."""
+        """Write value (an unsigned byte, 0-255) to address (0-31)."""
         self._check_address(address)
+        if not (0 <= value <= 255):
+            raise ValueError(f"Memory value {value} out of 8-bit range (0-255)")
         self._memory[address] = value
 
     def load_program(self, words: list[int], origin: int = 0) -> None:
@@ -103,12 +105,23 @@ class MachineState:
 
     @property
     def ac(self) -> int:
-        """Accumulator"""
+        """Accumulator (8-bit two's complement, -128..127)."""
         return self._ac
 
     @ac.setter
     def ac(self, value: int) -> None:
-        self._ac = value
+        self._ac = self._to_signed_byte(value)
+
+    # simHYMN's AC is an 8-bit two's-complement register: every value
+    # written to it keeps only its low byte, interpreted as signed
+    @staticmethod
+    def _to_signed_byte(value: int) -> int:
+        return ((value & 0xFF) ^ 0x80) - 0x80
+
+    # The PC is a 5-bit register: incrementing past 31 wraps to 0,
+    # like simHYMN's hardware counter — it can never leave 0-31
+    def _next_pc(self) -> int:
+        return (self._pc + 1) & 0b11111
 
     @property
     def ir(self) -> int:
@@ -173,47 +186,62 @@ class MachineState:
             if self._ac == 0:
                 self._pc = address
             else:
-                self._pc += 1
+                self._pc = self._next_pc()
             # PC = address if AC==0, else PC += 1, nothing happens to AC/memory
 
         elif opcode == self.JPOS:
             if self._ac > 0:
                 self._pc = address
             else:
-                self._pc += 1
+                self._pc = self._next_pc()
                 #PC = address if AC>0, else PC += 1, nothing happens to AC/memory
 
         elif opcode == self.LOAD:
             if address == self.READ_ADDR:
-                self._ac = self._input_fn()   # memory-mapped keyboard input
+                self.ac = self._input_fn()   # memory-mapped keyboard input
+            elif address == self.WRITE_ADDR:
+                # the output port is write-only; its cell is never written
+                # by STOR 31, so reading it would only ever return garbage
+                raise ValueError(
+                    "Address 31 is the memory-mapped output port; "
+                    "LOAD 31 is not supported")
             else:
-                self._ac = self._memory[address]
-            self._pc += 1
+                # memory holds unsigned bytes; the AC reads them as signed
+                self.ac = self._memory[address]
+            self._pc = self._next_pc()
             #PC += 1, AC = memory[address] (or keyboard if address == READ_ADDR)
 
         elif opcode == self.STOR:
             if address == self.WRITE_ADDR:
                 self._output_fn(self._ac)     # memory-mapped console output
                 self._io_output.append(self._ac)
+            elif address == self.READ_ADDR:
+                # the input port is read-only; a value stored here could
+                # never be read back (LOAD 30 reads the keyboard instead)
+                raise ValueError(
+                    "Address 30 is the memory-mapped input port; "
+                    "STOR 30 is not supported")
             else:
-                self._memory[address] = self._ac
-            self._pc += 1
+                # store the AC's two's-complement byte (0-255)
+                self._memory[address] = self._ac & 0xFF
+            self._pc = self._next_pc()
             #PC += 1, memory[address] = AC (or console if address == WRITE_ADDR)
 
         elif opcode == self.ADD:
-            self._ac = self._ac + self._memory[address]
-            self._pc += 1
-            #PC += 1, AC = AC + memory[address] 
+            self.ac = self._ac + self._memory[address]
+            self._pc = self._next_pc()
+            #PC += 1, AC = AC + memory[address]
 
         elif opcode == self.SUB:
-            self._ac = self._ac - self._memory[address]
-            self._pc += 1
-            #PC += 1, AC = AC - memory[address] 
+            self.ac = self._ac - self._memory[address]
+            self._pc = self._next_pc()
+            #PC += 1, AC = AC - memory[address]
 
 
 
     def run(self) -> None:
-        """Execute instructions until HALT or PC goes out of bounds."""
+        """Execute instructions until HALT (the 5-bit PC wraps, so it never
+        goes out of bounds — a program with no reachable HALT runs forever)."""
         if self._halted:
             raise RuntimeError("Machine is halted; call reset() to restart.")
         while not self._halted:

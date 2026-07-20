@@ -90,7 +90,10 @@ class Parser:
 
             if isLabel:
                 label_name = token.rstrip(':')
-                self._symbolDict[label_name] = address
+                if label_name in self._symbolDict:
+                    self._add_error(index + 1, ' '.join(tokens), f"Duplicate label: '{label_name}'")
+                else:
+                    self._symbolDict[label_name] = address
                 if len(tokens) > 1:  # e.g. LOOP: ADD 3 must still increment address
                     address += 1
             else:

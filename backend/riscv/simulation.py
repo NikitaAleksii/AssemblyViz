@@ -33,6 +33,7 @@ class Simulation:
         self._errors = []
         self.PC = 0
         self.halted = False
+        self.program_end = 0  # byte address just past the last loaded word
         self._io_output: list[str] = []
 
     # ------------------------------------------------------------------
@@ -56,9 +57,12 @@ class Simulation:
         words = assembler.assemble(parsed_lines, self._symbol_table)
         for i, word in enumerate(words):
             self.memory.memory_write(i * 4, word, "1111")
+        self.program_end = len(words) * 4
         self.PC = 0
         self.halted = False
-        self.registers.write(2, self.memory_depth)
+        # sp starts at the last valid word address (the stack grows down,
+        # and pointing one past the end would make lw/sw 0(sp) fault)
+        self.registers.write(2, self.memory_depth - 4)
 
     # Executes one instruction at a time
     def step(self):
@@ -70,6 +74,13 @@ class Simulation:
                 print(f"{error.line_number} {error.line_text} {error.message}")
             self.halted = True
             return
+
+        # Halt once the PC leaves the loaded program — it either ran past
+        # the last instruction (no exit ecall) or a jump sent it somewhere
+        # invalid. Also guards against misaligned fetches from jalr.
+        if self.PC % 4 != 0 or not (0 <= self.PC < self.program_end):
+            self.halted = True
+            return self.snapshot()
 
         word = self.memory.memory_read(self.PC)
         instruction = DecodedInstruction(word)
@@ -83,6 +94,7 @@ class Simulation:
         self.registers = Registers()
         self.PC = 0
         self.halted = False
+        self.program_end = 0
         self._io_output = []
 
     def read_label(self, label: str, count: int = 1) -> list[int] | None:
@@ -144,6 +156,7 @@ class Simulation:
         # Handle Load
         elif instruction.isLoad:
             load_addr = rs1 + Iimm
+            self._check_alignment(instr_mnemonic, load_addr)
             word_addr = load_addr & ~0b11
             read_val = self.memory.memory_read(word_addr)
 
@@ -186,6 +199,7 @@ class Simulation:
         # Handle Store
         elif instruction.isStore:
             write_addr = rs1 + Simm
+            self._check_alignment(instr_mnemonic, write_addr)
             word_write = write_addr & ~0b11
 
             if instr_mnemonic == "sw":
@@ -247,7 +261,8 @@ class Simulation:
             self.registers.write(
                 instruction.rd, self.PC + 4
             )
-            self.PC = rs1 + Iimm
+            # spec: jalr clears bit 0 of the computed target
+            self.PC = (rs1 + Iimm) & ~1
 
         # Handle Load Upper Immediate (LUI)
         elif instruction.isLUI:
@@ -265,16 +280,46 @@ class Simulation:
 
         # Handle System calls
         elif instruction.isSystem:
-            a0 = self.registers.read(10)
-            a7 = self.registers.read(17)  # syscall number
-            if a7 == 1:    # print integer
-                self._io_output.append(str(a0))
-                self.PC += 4
-            elif a7 == 4:  # print null-terminated string at address a0
-                self._io_output.append(self._read_cstring(a0))
-                self.PC += 4
-            else:          # exit (10) or unknown — halt
+            if instruction.Iimm == 1:
+                # ebreak — stop like a breakpoint; it is not a syscall and
+                # must not print or exit based on whatever a7 happens to hold
                 self.halted = True
+            else:  # ecall — dispatch on the syscall number in a7
+                a0 = self.registers.read(10)
+                a7 = self.registers.read(17)
+                if a7 == 1:    # print integer
+                    self._io_output.append(str(a0))
+                    self.PC += 4
+                elif a7 == 4:  # print null-terminated string at address a0
+                    self._io_output.append(self._read_cstring(a0))
+                    self.PC += 4
+                elif a7 in (0, 10):
+                    # exit: 10 per convention; 0 keeps the bare-`ecall`
+                    # idiom used throughout the docs and samples working
+                    self.halted = True
+                else:
+                    raise ValueError(
+                        f"Unsupported ecall: a7={a7} "
+                        f"(supported: 1=print integer, 4=print string, 10=exit)")
+
+        # No opcode flag matched: the PC landed on a word that isn't a
+        # valid instruction (e.g. a jump into data). Halt instead of
+        # looping forever on the same PC.
+        else:
+            self.halted = True
+
+    # Loads/stores must be naturally aligned: lw/sw to a multiple of 4,
+    # lh/lhu/sh to a multiple of 2 (lb/lbu/sb have no restriction).
+    # Without this check a misaligned access would silently hit the wrong
+    # lane of the containing word instead of the addressed bytes.
+    _ALIGNMENT = {"lw": 4, "sw": 4, "lh": 2, "lhu": 2, "sh": 2}
+
+    def _check_alignment(self, mnemonic: str, address: int) -> None:
+        required = self._ALIGNMENT.get(mnemonic, 1)
+        if address % required != 0:
+            raise ValueError(
+                f"Misaligned {mnemonic} at address {address} "
+                f"(must be a multiple of {required})")
 
     def _read_cstring(self, addr: int) -> str:
         """Read a null-terminated byte string from memory (little-endian)."""
@@ -283,8 +328,6 @@ class Simulation:
             word_addr = addr & ~0b11
             byte_pos  = addr & 0b11
             word = self.memory.memory_read(word_addr)
-            if word is None:
-                break
             byte = (word >> (byte_pos * 8)) & 0xFF
             if byte == 0:
                 break

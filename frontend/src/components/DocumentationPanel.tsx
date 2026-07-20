@@ -38,7 +38,12 @@ const DocumentationPanel: React.FC = () => (
           </a>
           . AssemblyViz adapts the HYMN ISA for interactive, browser-based visualization,
           extending it with a two-pass assembler, a REST API step engine, and a full frontend
-          debugger with step-back support.
+          debugger with step-back support. 
+        </p>
+        <p>
+          AssemblyViz was developed as a student-led project for the Software Design class taught by <strong>Dr. Terrence Lim</strong>. 
+          We would like to thank him for the feedback and instruction that helped immensely throughout development. We would 
+          also like to acknowledge the work of <strong>Murtaza Nikzad</strong>, who developed a related tool before ours.
         </p>
       </section>
 
@@ -76,9 +81,9 @@ const DocumentationPanel: React.FC = () => (
         <table className="doc-table">
           <thead><tr><th>Control</th><th>Action</th></tr></thead>
           <tbody>
-            <tr><td>◀ Step Back</td><td>Rewind one instruction using the saved snapshot stack</td></tr>
+            <tr><td>◀| Step Back</td><td>Rewind one instruction using the saved snapshot stack</td></tr>
             <tr><td>▶ Play</td><td>Run continuously at the configured speed until halt</td></tr>
-            <tr><td>▶| Step Forward</td><td>Execute exactly one instruction</td></tr>
+            <tr><td>|▶ Step Forward</td><td>Execute exactly one instruction</td></tr>
             <tr><td>↺ Reset</td><td>Clear simulation state (editor contents are preserved)</td></tr>
           </tbody>
         </table>
@@ -147,8 +152,8 @@ const DocumentationPanel: React.FC = () => (
             <tr><td><code>JUMP</code></td><td><code>001</code></td><td>address</td><td>PC = address</td></tr>
             <tr><td><code>JZER</code></td><td><code>010</code></td><td>address</td><td>If AC == 0: PC = address, else PC += 1</td></tr>
             <tr><td><code>JPOS</code></td><td><code>011</code></td><td>address</td><td>If AC &gt; 0: PC = address, else PC += 1</td></tr>
-            <tr><td><code>LOAD</code></td><td><code>100</code></td><td>address</td><td>AC = memory[address]; PC += 1</td></tr>
-            <tr><td><code>STOR</code></td><td><code>101</code></td><td>address</td><td>memory[address] = AC; PC += 1</td></tr>
+            <tr><td><code>LOAD</code></td><td><code>100</code></td><td>address</td><td>AC = memory[address]; PC += 1 (addresses 30/31 are I/O ports — see Pseudo-ops)</td></tr>
+            <tr><td><code>STOR</code></td><td><code>101</code></td><td>address</td><td>memory[address] = AC; PC += 1 (addresses 30/31 are I/O ports — see Pseudo-ops)</td></tr>
             <tr><td><code>ADD</code></td><td><code>110</code></td><td>address</td><td>AC = AC + memory[address]; PC += 1</td></tr>
             <tr><td><code>SUB</code></td><td><code>111</code></td><td>address</td><td>AC = AC − memory[address]; PC += 1</td></tr>
           </tbody>
@@ -166,6 +171,12 @@ const DocumentationPanel: React.FC = () => (
             <tr><td><code>WRITE</code></td><td><code>STOR 31</code></td><td>Write AC to the I/O console output</td></tr>
           </tbody>
         </table>
+        <p>
+          Addresses 30 and 31 are memory-mapped I/O <em>ports</em>, not general storage:
+          the input port (30) is read-only and the output port (31) is write-only, so
+          <code> STOR 30</code> and <code>LOAD 31</code> are runtime errors. Addresses 0–29
+          are available as general memory.
+        </p>
 
         <h3 className="doc-subheading">Syntax</h3>
         <ul className="doc-list">
@@ -176,23 +187,23 @@ const DocumentationPanel: React.FC = () => (
         </ul>
 
         <h3 className="doc-subheading">Example — Sum two numbers</h3>
-        <pre className="doc-code">{`; Compute A + B and write result to console
-        LOAD 10     ; AC = A
-        ADD  11     ; AC = AC + B
-        WRITE       ; print AC
+        <pre className="doc-code">{`# Compute A + B and write result to console
+        LOAD 10     # AC = A
+        ADD  11     # AC = AC + B
+        WRITE       # print AC
         HALT
 
-; Data section (manual placement at address 10)
-        10          ; A = 10
-        5           ; B = 5`}</pre>
+# Data section (manual placement at address 10)
+        10          # A = 10
+        5           # B = 5`}</pre>
 
         <h3 className="doc-subheading">Example — Loop with conditional branch</h3>
-        <pre className="doc-code">{`; Count down from 3 to 0
-        LOAD  COUNT     ; AC = 3
-LOOP:   WRITE           ; print AC
-        SUB   ONE       ; AC = AC - 1
-        JZER  DONE      ; if AC == 0, jump to DONE
-        JUMP  LOOP      ; else loop
+        <pre className="doc-code">{`# Count down from 3 to 0
+        LOAD  COUNT     # AC = 3
+LOOP:   WRITE           # print AC
+        SUB   ONE       # AC = AC - 1
+        JZER  DONE      # if AC == 0, jump to DONE
+        JUMP  LOOP      # else loop
 DONE:   HALT
 
 COUNT:  3

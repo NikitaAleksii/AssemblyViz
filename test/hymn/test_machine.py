@@ -200,12 +200,16 @@ class TestStor:
         m.step()
         assert m.pc == 1
 
-    def test_stor_negative_ac_written_to_memory(self):
-        # AC can be negative; the raw value ends up in memory.
+    def test_stor_negative_ac_written_as_twos_complement_byte(self):
+        # Memory cells hold unsigned bytes: STOR writes the AC's
+        # two's-complement byte, and LOAD reads it back as signed.
         m = make_machine(enc(ST, 5))
         m.ac = -7
         m.step()
-        assert m.read_memory(5) == -7
+        assert m.read_memory(5) == 249  # -7 & 0xFF
+        m2 = make_machine(enc(LD, 1), 249)
+        m2.step()
+        assert m2.ac == -7
 
 
 # ===========================================================================
@@ -226,12 +230,20 @@ class TestAdd:
         m.step()
         assert m.pc == 1
 
-    def test_add_result_can_exceed_255(self):
-        # HYMN AC is a plain Python int — there is no 8-bit wrapping.
+    def test_add_wraps_to_8_bit_twos_complement(self):
+        # Per the simHYMN spec the AC is 8-bit two's complement:
+        # 200 + 200 = 400 ≡ -112 (mod 256, signed).
         m = make_machine(enc(AD, 1), 200)
-        m.ac = 200
+        m.ac = 200          # stored as -56, the same byte pattern
         m.step()
-        assert m.ac == 400  # not 144 / not an error
+        assert m.ac == -112
+
+    def test_add_overflow_to_256_wraps_to_zero(self):
+        # 128 + 128 wraps to 0, so JZER after it branches (spec behavior).
+        m = make_machine(enc(AD, 1), 128)
+        m.ac = 128
+        m.step()
+        assert m.ac == 0
 
 
 # ===========================================================================
@@ -264,16 +276,17 @@ class TestSub:
 
 class TestPCBoundary:
 
-    def test_pc_at_31_after_non_halt_instruction(self):
-        # Place a LOAD at address 31, data at address 0.
-        # After the LOAD executes, PC becomes 32 — out of valid range.
-        # The *next* step() should not silently succeed.
+    def test_pc_at_31_wraps_to_0(self):
+        # The PC is a 5-bit register, like simHYMN's hardware counter:
+        # after an instruction at address 31 it wraps to 0 — it can never
+        # reach 32, so a round-tripped snapshot is always steppable.
         m = MachineState()
         m.write_memory(31, enc(LD, 0))
         m.pc = 31
-        m.step()                    # LOAD executes, PC → 32
-        with pytest.raises((ValueError, IndexError)):
-            m.step()                # must not silently access memory[32]
+        m.step()                    # LOAD executes, PC wraps
+        assert m.pc == 0
+        m.step()                    # memory[0] is 0 = HALT — executes fine
+        assert m.halted
 
 
 # ===========================================================================
@@ -395,6 +408,23 @@ class TestMemoryMappedIO:
         m.load_program([enc(ST, MachineState.WRITE_ADDR), enc(H, 0)])
         m.step()
         assert m.snapshot()["io_output"] == [123]
+
+    def test_stor_30_to_input_port_raises(self):
+        # The input port is read-only: a stored value could never be read
+        # back (LOAD 30 reads the keyboard), so STOR 30 is an error.
+        m = MachineState()
+        m.ac = 42
+        m.load_program([enc(ST, MachineState.READ_ADDR), enc(H, 0)])
+        with pytest.raises(ValueError):
+            m.step()
+
+    def test_load_31_from_output_port_raises(self):
+        # The output port is write-only: its cell is never written by
+        # STOR 31, so LOAD 31 is an error.
+        m = MachineState()
+        m.load_program([enc(LD, MachineState.WRITE_ADDR), enc(H, 0)])
+        with pytest.raises(ValueError):
+            m.step()
 
     def test_multiple_writes_accumulate_in_io_output(self):
         values = iter([1, 2, 3])

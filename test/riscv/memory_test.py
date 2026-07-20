@@ -33,12 +33,8 @@ class TestMemoryInit(unittest.TestCase):
         self.assertEqual(mem.memory_read(8), 3)
 
     def test_init_string_too_large_is_rejected(self):
-        import io
-        from contextlib import redirect_stdout
-        f = io.StringIO()
-        with redirect_stdout(f):
+        with self.assertRaises(ValueError):
             Memory(16, "1 2 3 4 5")
-        self.assertIn("Address doesn't exist", f.getvalue())
 
 
 class TestMemoryWrite(unittest.TestCase):
@@ -107,14 +103,19 @@ class TestMemoryWrite(unittest.TestCase):
         self.assertEqual(self.mem.memory_read(0), 0xFFFFFFFF)
 
     def test_unaligned_address_rejected(self):
-        import io
-        from contextlib import redirect_stdout
-        f = io.StringIO()
-        with redirect_stdout(f):
-            self.mem.memory_write(1, 42, "1111")
-            self.mem.memory_write(2, 42, "1111")
-            self.mem.memory_write(3, 42, "1111")
-        self.assertIn("Address doesn't exist", f.getvalue())
+        for address in (1, 2, 3):
+            with self.assertRaises(ValueError):
+                self.mem.memory_write(address, 42, "1111")
+
+    def test_out_of_range_write_rejected(self):
+        with self.assertRaises(ValueError):
+            self.mem.memory_write(256, 42, "1111")
+
+    def test_negative_address_write_rejected(self):
+        with self.assertRaises(ValueError):
+            self.mem.memory_write(-4, 42, "1111")
+        # the last slot must be untouched (no Python negative-index wraparound)
+        self.assertEqual(self.mem.memory_read(252), 0)
 
 
 class TestMemoryRead(unittest.TestCase):
@@ -130,14 +131,18 @@ class TestMemoryRead(unittest.TestCase):
         self.assertEqual(self.mem.memory_read(0), 12345)
 
     def test_unaligned_read_rejected(self):
-        import io
-        from contextlib import redirect_stdout
-        f = io.StringIO()
-        with redirect_stdout(f):
-            self.mem.memory_read(1)
-            self.mem.memory_read(2)
-            self.mem.memory_read(3)
-        self.assertIn("Address doesn't exist", f.getvalue())
+        for address in (1, 2, 3):
+            with self.assertRaises(ValueError):
+                self.mem.memory_read(address)
+
+    def test_out_of_range_read_rejected(self):
+        with self.assertRaises(ValueError):
+            self.mem.memory_read(256)
+
+    def test_negative_address_read_rejected(self):
+        self.mem.memory_write(252, 0xDEADBEEF, "1111")
+        with self.assertRaises(ValueError):
+            self.mem.memory_read(-4)
 
 
 class TestMemoryReset(unittest.TestCase):

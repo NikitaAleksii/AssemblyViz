@@ -39,6 +39,8 @@ interface HistoryEntry {
   /** The index of the instruction that was active when this snapshot was taken (-1 = before first step). */
   currentStep: number
   inputQueuePos: number
+  /** Console text at snapshot time, so Step Back rewinds output too. */
+  consoleOutput: string
 }
 
 /**
@@ -106,6 +108,17 @@ function App() {
   /** Mirror of `speedMs` state kept in a ref so the play-loop always reads the latest value. */
   const speedMsRef  = useRef(speedMs)
   useEffect(() => { speedMsRef.current = speedMs }, [speedMs])
+  /**
+   * Mirror of `consoleOutput` kept in a ref and updated synchronously with it,
+   * so history snapshots taken inside the play-loop never capture a stale value.
+   */
+  const consoleRef = useRef('')
+  /**
+   * The exact source text that produced the current `assembled` listing.
+   * Steps replay THIS text, not the live editor contents — otherwise editing
+   * after assembling would silently simulate a program the listing doesn't show.
+   */
+  const assembledSourceRef = useRef('')
 
   const [inputQueue, setInputQueue] = useState<string[]>([])
   const inputQueuePos = useRef<number>(0)
@@ -124,8 +137,9 @@ function App() {
     setRegisters(isaMode === 'HYMN' ? [...HYMN_REGISTERS] : [...RISCV_DEFAULT_REGISTERS])
     stepHistory.current = []
     inputQueuePos.current = 0
+    assembledSourceRef.current = ''
     setInputQueue([])
-    setConsole('')
+    clearConsole()
     showOutput(`${isaMode} mode selected.`)
   }, [isaMode])
 
@@ -136,6 +150,32 @@ function App() {
    */
   function showOutput(msg: string, error = false) {
     setOutput(msg); setIsError(error)
+  }
+
+  /** Append step output to the console, keeping the ref and state in lockstep. */
+  function appendConsole(text: string, sep: string) {
+    consoleRef.current = consoleRef.current ? consoleRef.current + sep + text : text
+    setConsole(consoleRef.current)
+  }
+
+  /** Clear the console, keeping the ref and state in lockstep. */
+  function clearConsole() {
+    consoleRef.current = ''
+    setConsole('')
+  }
+
+  /**
+   * Extract a human-readable error message from a failed API response:
+   * structured line errors first, then a plain-string `detail`, then `fallback`.
+   */
+  async function apiErrorMessage(res: Response, fallback: string): Promise<string> {
+    try {
+      const err = await res.json()
+      const errors = err.detail?.errors
+      if (Array.isArray(errors) && errors.length) return `Line ${errors[0].line}: ${errors[0].message}`
+      if (typeof err.detail === 'string') return err.detail
+    } catch { /* response body was not JSON */ }
+    return fallback
   }
 
   /** Cancel the play-loop timer and mark the simulator as stopped. */
@@ -167,12 +207,7 @@ function App() {
         body: JSON.stringify({ source: code }),
       })
       if (!res.ok) {
-        const err = await res.json()
-        const errors = err.detail?.errors
-        const msg = Array.isArray(errors) && errors.length
-          ? `Line ${errors[0].line}: ${errors[0].message}`
-          : (typeof err.detail === 'string' ? err.detail : 'Assembly failed.')
-        showOutput(msg, true)
+        showOutput(await apiErrorMessage(res, 'Assembly failed.'), true)
         return false
       }
       const data = await res.json()
@@ -206,7 +241,8 @@ function App() {
       setCurrentStep(-1)
       stepHistory.current = []
       inputQueuePos.current = 0
-      setConsole('')
+      assembledSourceRef.current = code
+      clearConsole()
       showOutput(`Assembled ${data.instructions.length} line(s) in ${isaMode} mode.`)
       return true
     } catch {
@@ -241,6 +277,7 @@ function App() {
       assembled:     p.assembled,
       currentStep:   p.currentStep,
       inputQueuePos: p.inputQueuePos,
+      consoleOutput: consoleRef.current,
     })
 
     try {
@@ -270,7 +307,7 @@ function App() {
           body: JSON.stringify({ memory: p.memorySlots.map(s => s.value ?? 0), pc, ac, io_input: ioInput }),
         })
         if (!res.ok) {
-          showOutput('Step failed.', true)
+          showOutput(await apiErrorMessage(res, 'Step failed.'), true)
           stepHistory.current.pop()
           return null
         }
@@ -304,7 +341,7 @@ function App() {
 
         const cont = !data.halted && data.pc < p.assembled.length
         if (data.io_output?.length) {
-          setConsole(prev => (prev ? prev + '  ' : '') + data.io_output.join('  '))
+          appendConsole(data.io_output.join('  '), '  ')
         }
         if (data.halted) {
           showOutput(`Halted at step ${executedIdx + 1}.`)
@@ -324,7 +361,7 @@ function App() {
           body: JSON.stringify({ source: p.source, step_count: execCount }),
         })
         if (!res.ok) {
-          showOutput('Step failed.', true)
+          showOutput(await apiErrorMessage(res, 'Step failed.'), true)
           stepHistory.current.pop()
           return null
         }
@@ -347,7 +384,7 @@ function App() {
         setRegisters(newRegisters)
         setCurrentStep(execCount)
         if (data.io_output?.length) {
-          setConsole(prev => (prev ? prev + data.io_output.join('') : data.io_output.join('')))
+          appendConsole(data.io_output.join(''), '')
         }
         const instrName = highlightIdx >= 0 ? p.assembled[highlightIdx].instruction : ''
         showOutput(
@@ -372,7 +409,7 @@ function App() {
   async function handleStep() {
     stopRun()
     if (!assembled.length) { await handleAssemble(); return }
-    await performStep({ words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: code, inputQueue, inputQueuePos: inputQueuePos.current })
+    await performStep({ words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: assembledSourceRef.current, inputQueue, inputQueuePos: inputQueuePos.current })
   }
 
   // ── Step Back ────────────────────────────────────────────────
@@ -389,6 +426,8 @@ function App() {
     setAssembled(prev.assembled)
     setCurrentStep(prev.currentStep)
     inputQueuePos.current = prev.inputQueuePos
+    consoleRef.current = prev.consoleOutput
+    setConsole(prev.consoleOutput)
     if (prev.currentStep < 0) showOutput('Returned to start.')
     else showOutput(`Moved back to step ${prev.currentStep + 1}.`)
   }
@@ -417,7 +456,7 @@ function App() {
     isPlaying.current = true
     showOutput('Running...')
 
-    let state: StepParams = { words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: code, inputQueue, inputQueuePos: inputQueuePos.current }
+    let state: StepParams = { words, registers, memorySlots, assembled, currentStep, mode: isaMode, source: assembledSourceRef.current, inputQueue, inputQueuePos: inputQueuePos.current }
 
     const loop = async () => {
       if (!isPlaying.current) return
@@ -449,7 +488,8 @@ function App() {
     setRegisters(isaMode === 'HYMN' ? [...HYMN_REGISTERS] : [...RISCV_DEFAULT_REGISTERS])
     stepHistory.current = []
     inputQueuePos.current = 0
-    setConsole('')
+    assembledSourceRef.current = ''
+    clearConsole()
     showOutput('Reset.')
   }
 
